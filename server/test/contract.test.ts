@@ -136,7 +136,7 @@ test("file upload: pdf and markdown ingest with their type; unsupported types ar
   const bad = await upload(new File([new Uint8Array([137, 80, 78, 71])], "photo.png", { type: "image/png" }));
   expect(bad.status).toBe(400);
   expect((await bad.json()).error).toContain("unsupported");
-});
+}, 30_000); // first PDF parse loads pdf.js; cold starts exceeded bun's 5s default
 
 test("legacy v3/v4 shims used by the browser extension", async () => {
   const req = (path: string, body?: unknown) => fetch(`http://localhost:${server.port}${path}`, {

@@ -3,7 +3,7 @@
 import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
-import { llmStream, type ChatMessage } from "./llm";
+import { stream as llmStream, type ChatMessage } from "./llm";
 
 const body = z.object({
   namespace: z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/),
@@ -55,7 +55,7 @@ export function mountChat(app: Hono, apiKey: string) {
       let reply = "";
       try {
         const prompt: ChatMessage[] = [{ role: "system", content: systemPrompt(profile, memories) }, ...messages];
-        for await (const text of llmStream(prompt, c.req.raw.signal)) {
+        for await (const text of llmStream("chat", prompt, c.req.raw.signal)) {
           reply += text;
           await stream.writeSSE({ event: "delta", data: JSON.stringify({ text }) });
         }

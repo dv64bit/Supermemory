@@ -91,3 +91,30 @@ create table if not exists profile_buckets (
 
 -- Phase 4: tiny key/value store (MCP active space)
 create table if not exists settings (key text primary key, value text not null);
+
+-- v2 P1: every LLM call is logged (role, model, prompt version, tokens, latency, cache hit, failures with raw output)
+create table if not exists llm_calls (
+  id bigserial primary key,
+  role text not null,
+  model text not null,
+  prompt_version text,                      -- <prompt file>@<content hash>; null for chat
+  input_hash text not null,
+  tokens_in int,
+  tokens_out int,
+  latency_ms int not null,
+  cached boolean not null,
+  ok boolean not null,
+  attempts int not null,                    -- 0 = cache hit, 2 = needed the repair retry
+  error text,
+  raw_output text,                          -- kept only when the call failed validation
+  at timestamptz not null default now()
+);
+create index if not exists llm_calls_at on llm_calls (at);
+
+-- v2 P1: response cache, key = hash(role, model, prompt version, schema, input). LLM_CACHE=off bypasses it.
+create table if not exists llm_cache (
+  key text primary key,
+  role text not null,
+  response jsonb not null,
+  created_at timestamptz not null default now()
+);

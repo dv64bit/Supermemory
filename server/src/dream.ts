@@ -2,7 +2,7 @@
 // Three LLM passes per document: extract -> relate (to nearest existing memories) -> derive (inferences).
 import { sql, toVector } from "./db";
 import { embed } from "./embed";
-import { llmJson } from "./llm";
+import { call } from "./llm";
 
 const NEIGHBORS = 5;
 const NEIGHBOR_MIN_SIM = 0.55;
@@ -12,31 +12,6 @@ const DUPLICATE_SIM = 0.92; // ponytail: embedding near-identity as "already kno
 type Kind = "fact" | "preference" | "episode";
 type Candidate = { content: string; kind: Kind; expiresAt: string | null; bucket?: string | null };
 type Neighbor = { pk: number; id: string; content: string; version: number; root_id: string | null; sim: number };
-
-const EXTRACT = `TASK: extract
-You turn a document into atomic memories about the people, projects and things in it.
-Rules:
-- Each memory is ONE self-contained fact in a short third-person sentence, with names resolved (never "he" or "they" if a name is known).
-- First-person text (I, me, my, we) is written by the user: call them "the user". NEVER invent or guess a name.
-- State facts only, in at most ~15 words. No interpretation ("implying", "suggests", "which means") and no joining unrelated facts.
-- kind: "fact" for stable state (job, location, relationships), "preference" for likes/dislikes/habits/how they want things done, "episode" for one-off events.
-- expiresAt: ISO date when the memory stops being true, ONLY for upcoming time-bound things ("exam tomorrow" -> the day after).
-  Lasting facts and things that already happened ("moved to Berlin in March") get null. Resolve relative dates against documentDate.
-- Skip small talk, greetings, filler and anything not worth remembering. Return an empty list if nothing qualifies.`;
-
-const RELATE = `TASK: relate
-For each candidate memory, compare it to its numbered neighbors (existing memories) and decide:
-- "duplicate": a neighbor already says the same thing. target = that neighbor.
-- "updates": it contradicts or supersedes a neighbor (new job, moved city, changed preference). target = the superseded neighbor.
-- "extends": it adds detail to a neighbor that stays true. target = that neighbor.
-- "new": none of the above. target = null.`;
-
-const DERIVE = `TASK: derive
-Given numbered memories, propose at most 3 new facts that are strongly implied by combining two or more of them
-but are not stated in any single one. "from" lists the numbers you combined. Return an empty list if nothing is clearly implied.
-An inference is a NEW conclusion (e.g. "works at Stripe" + "talks about fraud APIs" -> "likely works on Stripe's payments product").
-Never just join or restate memories ("X and Y" is not an inference). One short sentence, at most ~15 words,
-no "suggests"/"implying"/"combined with" phrasing: state the conclusion itself.`;
 
 const str = { type: "string" };
 const extractSchema = {
@@ -97,12 +72,13 @@ export async function dream(docPk: number) {
 
   // Custom profile buckets ride along with extraction; "preferences" is assigned by kind.
   const custom = await sql`select name, description from profile_buckets where ns = ${doc.ns} order by name`;
-  const { memories } = await llmJson<{ memories: Candidate[] }>(
-    custom.length ? `${EXTRACT}\n- bucket: the best-fitting bucket name from "buckets" for this memory, or null if none fits.` : EXTRACT,
-    JSON.stringify({
+  const { memories } = await call<{ memories: Candidate[] }>(
+    "extract",
+    custom.length ? "extract-buckets.v1" : "extract.v1",
+    {
       supportingContext: doc.ctx, documentDate: doc.doc_date.toISOString(), content: doc.content,
       ...(custom.length && { buckets: Object.fromEntries(custom.map((b: any) => [b.name, b.description])) }),
-    }),
+    },
     custom.length ? withBucket(custom.map((b: any) => b.name)) : extractSchema,
   );
   const bucketNames = new Set(custom.map((b: any) => b.name));
@@ -133,8 +109,8 @@ export async function dream(docPk: number) {
     .filter((c) => c.neighbors.length && nearDup(c.i) === null);
   for (const i of cands.keys()) if (nearDup(i) !== null) decisions.set(i, { relation: "duplicate", target: nearDup(i) });
   if (toRelate.length) {
-    const out = await llmJson<{ decisions: { i: number; relation: string; target: number | null }[] }>(
-      RELATE, JSON.stringify({ candidates: toRelate }), relateSchema,
+    const out = await call<{ decisions: { i: number; relation: string; target: number | null }[] }>(
+      "relate", "relate.v1", { candidates: toRelate }, relateSchema,
     );
     for (const d of out.decisions) {
       // Only trust targets that were actually offered for that candidate.
@@ -185,8 +161,8 @@ async function derive(doc: { ns: string; pk: number; metadata: unknown }, insert
   const pool = (await sql`
     select pk, content from memories where pk in ${sql(pks)} and is_latest and not is_forgotten order by pk limit 15`) as { pk: number; content: string }[];
   if (pool.length < 2) return;
-  const { inferences } = await llmJson<{ inferences: { content: string; from: number[] }[] }>(
-    DERIVE, JSON.stringify({ memories: pool.map((m, j) => ({ j, content: m.content })) }), deriveSchema,
+  const { inferences } = await call<{ inferences: { content: string; from: number[] }[] }>(
+    "derive", "derive.v1", { memories: pool.map((m, j) => ({ j, content: m.content })) }, deriveSchema,
   );
   const valid = inferences.filter((x) => x.content?.trim() && x.from.filter((j) => pool[j]).length >= 2).slice(0, 3);
   if (!valid.length) return;

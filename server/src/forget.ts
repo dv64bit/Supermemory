@@ -1,14 +1,11 @@
 import { sql, toVector } from "./db";
 import { embed } from "./embed";
-import { llmJson } from "./llm";
+import { call } from "./llm";
 import { searchMemories } from "./memories";
 
 const SEMANTIC_POOL = 30;
 const MAX_FORGET = 100;
 
-const PICK = `TASK: forget
-The user wants to forget memories matching their request. From the numbered candidates, pick ONLY the ones the request
-is clearly about. When unsure, leave it out.`;
 const pickSchema = {
   type: "object", additionalProperties: false, required: ["forget"],
   properties: { forget: { type: "array", items: { type: "integer" } } },
@@ -20,8 +17,8 @@ export async function forgetSemantic(ns: string, query: string, dryRun: boolean)
   // No similarity floor: requests like "forget everything about X" embed poorly; the LLM is the judge.
   const cands = (await searchMemories(ns, toVector(qvec), query, { forgotten: false, pool: SEMANTIC_POOL })).slice(0, SEMANTIC_POOL);
   if (!cands.length) return { count: 0, errors: [], matches: [] };
-  const { forget } = await llmJson<{ forget: number[] }>(
-    PICK, JSON.stringify({ request: query, candidates: cands.map((c, j) => ({ j, content: c.content })) }), pickSchema,
+  const { forget } = await call<{ forget: number[] }>(
+    "forget", "forget.v1", { request: query, candidates: cands.map((c, j) => ({ j, content: c.content })) }, pickSchema,
   );
   const picked = [...new Set(forget)].filter((j) => cands[j]).slice(0, MAX_FORGET).map((j) => cands[j]);
   if (!dryRun && picked.length) {
