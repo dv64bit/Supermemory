@@ -1,0 +1,210 @@
+// "Dreaming": turn an indexed document into atomic memories linked to what the namespace already knew.
+// Three LLM passes per document: extract -> relate (to nearest existing memories) -> derive (inferences).
+import { sql, toVector } from "./db";
+import { embed } from "./embed";
+import { llmJson } from "./llm";
+
+const NEIGHBORS = 5;
+const NEIGHBOR_MIN_SIM = 0.55;
+const MAX_CANDIDATES = 30;
+const DUPLICATE_SIM = 0.92; // ponytail: embedding near-identity as "already known"; tune on real data
+
+type Kind = "fact" | "preference" | "episode";
+type Candidate = { content: string; kind: Kind; expiresAt: string | null; bucket?: string | null };
+type Neighbor = { pk: number; id: string; content: string; version: number; root_id: string | null; sim: number };
+
+const EXTRACT = `TASK: extract
+You turn a document into atomic memories about the people, projects and things in it.
+Rules:
+- Each memory is ONE self-contained fact in a short third-person sentence, with names resolved (never "he" or "they" if a name is known).
+- First-person text (I, me, my, we) is written by the user: call them "the user". NEVER invent or guess a name.
+- State facts only, in at most ~15 words. No interpretation ("implying", "suggests", "which means") and no joining unrelated facts.
+- kind: "fact" for stable state (job, location, relationships), "preference" for likes/dislikes/habits/how they want things done, "episode" for one-off events.
+- expiresAt: ISO date when the memory stops being true, ONLY for upcoming time-bound things ("exam tomorrow" -> the day after).
+  Lasting facts and things that already happened ("moved to Berlin in March") get null. Resolve relative dates against documentDate.
+- Skip small talk, greetings, filler and anything not worth remembering. Return an empty list if nothing qualifies.`;
+
+const RELATE = `TASK: relate
+For each candidate memory, compare it to its numbered neighbors (existing memories) and decide:
+- "duplicate": a neighbor already says the same thing. target = that neighbor.
+- "updates": it contradicts or supersedes a neighbor (new job, moved city, changed preference). target = the superseded neighbor.
+- "extends": it adds detail to a neighbor that stays true. target = that neighbor.
+- "new": none of the above. target = null.`;
+
+const DERIVE = `TASK: derive
+Given numbered memories, propose at most 3 new facts that are strongly implied by combining two or more of them
+but are not stated in any single one. "from" lists the numbers you combined. Return an empty list if nothing is clearly implied.
+An inference is a NEW conclusion (e.g. "works at Stripe" + "talks about fraud APIs" -> "likely works on Stripe's payments product").
+Never just join or restate memories ("X and Y" is not an inference). One short sentence, at most ~15 words,
+no "suggests"/"implying"/"combined with" phrasing: state the conclusion itself.`;
+
+const str = { type: "string" };
+const extractSchema = {
+  type: "object", additionalProperties: false, required: ["memories"],
+  properties: {
+    memories: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false, required: ["content", "kind", "expiresAt"],
+        properties: { content: str, kind: { type: "string", enum: ["fact", "preference", "episode"] }, expiresAt: { type: ["string", "null"] } },
+      },
+    },
+  },
+};
+const relateSchema = {
+  type: "object", additionalProperties: false, required: ["decisions"],
+  properties: {
+    decisions: {
+      type: "array",
+      items: {
+        type: "object", additionalProperties: false, required: ["i", "relation", "target"],
+        properties: { i: { type: "integer" }, relation: { type: "string", enum: ["new", "duplicate", "updates", "extends"] }, target: { type: ["integer", "null"] } },
+      },
+    },
+  },
+};
+const deriveSchema = {
+  type: "object", additionalProperties: false, required: ["inferences"],
+  properties: {
+    inferences: {
+      type: "array",
+      items: { type: "object", additionalProperties: false, required: ["content", "from"], properties: { content: str, from: { type: "array", items: { type: "integer" } } } },
+    },
+  },
+};
+
+const withBucket = (names: string[]) => {
+  const item = extractSchema.properties.memories.items;
+  return { ...extractSchema, properties: { memories: { type: "array", items: {
+    ...item, required: [...item.required, "bucket"],
+    properties: { ...item.properties, bucket: { type: ["string", "null"], enum: [...names, null] } },
+  } } } };
+};
+
+const validDate = (s: string | null) => (s && !Number.isNaN(Date.parse(s)) ? new Date(s) : null);
+// An expiry at or before the moment the content was written is a model mistake, not a deadline: ignore it.
+const expiry = (s: string | null, docDate: Date) => {
+  const d = validDate(s);
+  return d && d > docDate ? d : null;
+};
+
+export async function dream(docPk: number) {
+  const [doc] = await sql`
+    select d.pk, d.ns, d.content, d.metadata, coalesce(d.supporting_context, n.supporting_context) as ctx,
+           coalesce(d.doc_date, d.created_at) as doc_date
+    from documents d join namespaces n on n.id = d.ns where d.pk = ${docPk}`;
+  if (!doc?.content?.trim()) return;
+
+  // Custom profile buckets ride along with extraction; "preferences" is assigned by kind.
+  const custom = await sql`select name, description from profile_buckets where ns = ${doc.ns} order by name`;
+  const { memories } = await llmJson<{ memories: Candidate[] }>(
+    custom.length ? `${EXTRACT}\n- bucket: the best-fitting bucket name from "buckets" for this memory, or null if none fits.` : EXTRACT,
+    JSON.stringify({
+      supportingContext: doc.ctx, documentDate: doc.doc_date.toISOString(), content: doc.content,
+      ...(custom.length && { buckets: Object.fromEntries(custom.map((b: any) => [b.name, b.description])) }),
+    }),
+    custom.length ? withBucket(custom.map((b: any) => b.name)) : extractSchema,
+  );
+  const bucketNames = new Set(custom.map((b: any) => b.name));
+  const cands = memories.filter((m) => m.content?.trim()).slice(0, MAX_CANDIDATES);
+  if (!cands.length) return;
+  const vecs = await embed(cands.map((c) => c.content));
+
+  // Nearest live memories per candidate, numbered globally so the LLM can point at them.
+  const neighbors: Neighbor[] = [];
+  const neighborIdx = new Map<number, number>();
+  const candNeighbors: number[][] = [];
+  for (const v of vecs) {
+    const rows = (await sql`
+      select pk, id, content, version, root_id, 1 - (embedding <=> ${toVector(v)}::vector) as sim from memories
+      where ns = ${doc.ns} and is_latest and not is_forgotten
+        and 1 - (embedding <=> ${toVector(v)}::vector) >= ${NEIGHBOR_MIN_SIM}
+      order by embedding <=> ${toVector(v)}::vector limit ${NEIGHBORS}`) as Neighbor[];
+    candNeighbors.push(rows.map((r) => {
+      if (!neighborIdx.has(r.pk)) neighborIdx.set(r.pk, neighbors.push(r) - 1);
+      return neighborIdx.get(r.pk)!;
+    }));
+  }
+
+  const decisions = new Map<number, { relation: string; target: number | null }>();
+  // Near-identical to something already known: a duplicate, no LLM needed (small models miss these).
+  const nearDup = (i: number) => (candNeighbors[i].length && neighbors[candNeighbors[i][0]].sim >= DUPLICATE_SIM ? candNeighbors[i][0] : null);
+  const toRelate = cands.map((c, i) => ({ i, content: c.content, neighbors: candNeighbors[i].map((j) => ({ j, content: neighbors[j].content })) }))
+    .filter((c) => c.neighbors.length && nearDup(c.i) === null);
+  for (const i of cands.keys()) if (nearDup(i) !== null) decisions.set(i, { relation: "duplicate", target: nearDup(i) });
+  if (toRelate.length) {
+    const out = await llmJson<{ decisions: { i: number; relation: string; target: number | null }[] }>(
+      RELATE, JSON.stringify({ candidates: toRelate }), relateSchema,
+    );
+    for (const d of out.decisions) {
+      // Only trust targets that were actually offered for that candidate.
+      if (d.relation === "new" || (d.target !== null && candNeighbors[d.i]?.includes(d.target))) decisions.set(d.i, d);
+    }
+  }
+
+  const inserted: { pk: number; content: string; related: number[] }[] = [];
+  await sql.begin(async (tx) => {
+    const insert = async (c: Candidate, v: number[], extra: { version?: number; root_id?: string | null; is_inference?: boolean } = {}) => {
+      const bucket = c.bucket && bucketNames.has(c.bucket) ? c.bucket : null;
+      const [m] = await tx`
+        insert into memories (ns, content, kind, bucket, forget_after, version, root_id, is_inference, metadata, source_document_pk, embedding)
+        values (${doc.ns}, ${c.content}, ${c.kind}, ${bucket}, ${expiry(c.expiresAt ?? null, doc.doc_date)}, ${extra.version ?? 1}, ${extra.root_id ?? null},
+                ${extra.is_inference ?? false}, ${doc.metadata}, ${doc.pk}, ${toVector(v)}::vector)
+        returning pk, id`;
+      if (!extra.root_id) await tx`update memories set root_id = id where pk = ${m.pk}`;
+      return m as { pk: number; id: string };
+    };
+
+    for (const [i, c] of cands.entries()) {
+      const d = decisions.get(i) ?? { relation: "new", target: null };
+      const target = d.target !== null ? neighbors[d.target] : undefined;
+      if (d.relation === "duplicate" && target) {
+        await tx`update memories set strength = strength + 1, updated_at = now() where pk = ${target.pk}`;
+        continue;
+      }
+      if (d.relation === "updates" && target) {
+        const m = await insert(c, vecs[i], { version: target.version + 1, root_id: target.root_id ?? target.id });
+        await tx`update memories set is_latest = false, updated_at = now() where pk = ${target.pk}`;
+        await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${target.pk}, 'updates')`;
+        inserted.push({ pk: m.pk, content: c.content, related: [] });
+        continue;
+      }
+      const m = await insert(c, vecs[i]);
+      if (d.relation === "extends" && target) await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${target.pk}, 'extends')`;
+      inserted.push({ pk: m.pk, content: c.content, related: candNeighbors[i].map((j) => neighbors[j].pk) });
+    }
+  });
+
+  await derive(doc, inserted);
+}
+
+// Inferences over the touched cluster: new memories plus the live neighbors they landed next to.
+async function derive(doc: { ns: string; pk: number; metadata: unknown }, inserted: { pk: number; content: string; related: number[] }[]) {
+  if (!inserted.length) return;
+  const pks = [...new Set([...inserted.map((m) => m.pk), ...inserted.flatMap((m) => m.related)])];
+  const pool = (await sql`
+    select pk, content from memories where pk in ${sql(pks)} and is_latest and not is_forgotten order by pk limit 15`) as { pk: number; content: string }[];
+  if (pool.length < 2) return;
+  const { inferences } = await llmJson<{ inferences: { content: string; from: number[] }[] }>(
+    DERIVE, JSON.stringify({ memories: pool.map((m, j) => ({ j, content: m.content })) }), deriveSchema,
+  );
+  const valid = inferences.filter((x) => x.content?.trim() && x.from.filter((j) => pool[j]).length >= 2).slice(0, 3);
+  if (!valid.length) return;
+  const vecs = await embed(valid.map((x) => x.content));
+  await sql.begin(async (tx) => {
+    for (const [k, x] of valid.entries()) {
+      // The same cluster gets re-derived as neighbors recur; skip anything the namespace already knows.
+      const [{ known }] = await tx`select exists (select 1 from memories where ns = ${doc.ns} and is_latest and not is_forgotten
+        and 1 - (embedding <=> ${toVector(vecs[k])}::vector) >= ${DUPLICATE_SIM}) as known`;
+      if (known) continue;
+      const [m] = await tx`
+        insert into memories (ns, content, kind, is_inference, metadata, source_document_pk, embedding)
+        values (${doc.ns}, ${x.content}, 'fact', true, ${doc.metadata}, ${doc.pk}, ${toVector(vecs[k])}::vector)
+        returning pk`;
+      await tx`update memories set root_id = id where pk = ${m.pk}`;
+      for (const j of new Set(x.from)) {
+        if (pool[j]) await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${pool[j].pk}, 'derives') on conflict do nothing`;
+      }
+    }
+  });
+}

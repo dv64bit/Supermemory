@@ -1,0 +1,214 @@
+# supermemory | Memory API for the AI era
+
+> Frontier agent memory and context platform
+
+- [Introduction](https://supermemory.ai/docs/index.md): Context infrastructure for AI agents
+- [What is Supermemory?](https://supermemory.ai/docs/overview/what-is-supermemory.md): Supermemory is the long term and short term context and memory infrastructure for agents.
+- [Comparison - should I use supermemory?](https://supermemory.ai/docs/overview/comparison.md): How Supermemory compares with a DIY vector stack, thin memory layers, pure RAG and building it yourself.
+- [Quickstart](https://supermemory.ai/docs/quickstart.md): Ingest a conversation and a document, retrieve them three ways, then wire it into a chat harness.
+- [Agents, skills and MCP](https://supermemory.ai/docs/agents-and-mcp.md): Set up coding agents to integrate Supermemory with the CLI, the skill and the docs MCP.
+- [How Supermemory works](https://supermemory.ai/docs/concepts/how-it-works.md): How a file or chat turn becomes something you can search: the ingest pipeline, statuses and outputs.
+- [Graph memory](https://supermemory.ai/docs/concepts/graph-memory.md): How facts connect, update and stay true: relationships, temporal truth and automatic forgetting.
+- [Supported content types](https://supermemory.ai/docs/concepts/content-types.md): All the content formats Supermemory can ingest and process
+- [SuperRAG (managed RAG as a service)](https://supermemory.ai/docs/concepts/super-rag.md): Supermemory provides a managed RAG solution - extraction, indexing, storing, and retrieval.
+- [Memory vs RAG: Understanding the difference](https://supermemory.ai/docs/concepts/memory-vs-rag.md): Learn why agent memory and RAG are fundamentally different, and when to use each approach
+- [Multi-tenancy overview](https://supermemory.ai/docs/concepts/multi-tenancy.md): How Supermemory isolates and organizes memories across users, tenants, and projects
+- [Multi-tenancy examples](https://supermemory.ai/docs/concepts/multi-tenancy-examples.md): Common namespace and metadata patterns for personal agents, company agents, email assistants, and support platforms
+- [Namespaces](https://supermemory.ai/docs/concepts/container-tags.md): Namespaces, formerly container tags, are the isolation boundary that partitions memories by user, project, or any logical scope
+- [Organizing & filtering memories](https://supermemory.ai/docs/concepts/filtering.md): Use namespaces and metadata to organize and retrieve memories
+- [User profiles](https://supermemory.ai/docs/concepts/user-profiles.md): Automatically maintained context about your users
+- [Profile buckets](https://supermemory.ai/docs/user-profiles/buckets.md): Custom topical categories for user profiles
+- [Using Supermemory](https://supermemory.ai/docs/using-supermemory.md): The full loop: authenticate, put context in, get it back out, keep it correct.
+- [API keys & auth](https://supermemory.ai/docs/authentication.md): Org API keys, namespace-scoped keys, and connector branding.
+- [Invite team members](https://supermemory.ai/docs/invite-team-members.md): Invite a colleague to your Supermemory organization, choose their access, and share the invitation link.
+- [Customizing for your use case](https://supermemory.ai/docs/concepts/customization.md): Configure Supermemory's behavior for your specific application
+- [Ingesting context to supermemory](https://supermemory.ai/docs/ingestion/add-memories.md): Add text, files, and URLs to Supermemory
+- [Document operations](https://supermemory.ai/docs/ingestion/document-operations.md): List, get, update, and delete your ingested documents
+- [Connectors overview](https://supermemory.ai/docs/connectors/overview.md): Integrate Google Drive, Gmail, Notion, OneDrive, GitHub, Granola and Web Crawler to automatically sync documents into your knowledge base
+- [Notion connector](https://supermemory.ai/docs/connectors/notion.md): Sync Notion pages, databases, and blocks with real-time webhooks and workspace integration
+- [Google Drive connector](https://supermemory.ai/docs/connectors/google-drive.md): Connect Google Drive to sync documents into your Supermemory knowledge base
+- [Gmail connector](https://supermemory.ai/docs/connectors/gmail.md): Sync email threads from Gmail with real-time Pub/Sub webhooks and incremental sync
+- [OneDrive connector](https://supermemory.ai/docs/connectors/onedrive.md): Sync Microsoft Office documents from OneDrive with scheduled synchronization and business account support
+- [S3 Connector](https://supermemory.ai/docs/connectors/s3.md): Connect Amazon S3 or S3-compatible storage to sync files into your Supermemory knowledge base
+- [Granola connector](https://supermemory.ai/docs/connectors/granola.md): Sync AI meeting notes and transcripts from Granola into your Supermemory knowledge base
+- [GitHub connector](https://supermemory.ai/docs/connectors/github.md): Connect GitHub repositories to sync documentation files into your Supermemory knowledge base
+- [Web Crawler connector](https://supermemory.ai/docs/connectors/web-crawler.md): Crawl and sync websites automatically with scheduled recrawling and robots.txt compliance
+- [Connector troubleshooting](https://supermemory.ai/docs/connectors/troubleshooting.md): Diagnose and resolve common issues with Google Drive, Gmail, Notion, and OneDrive connectors
+- [Managing Connector Selection](https://supermemory.ai/docs/connectors/managing-resources.md): Choose what a connector syncs with the hosted picker or a direct selection update
+- [Search](https://supermemory.ai/docs/recall/search.md): Semantic search across your memories and documents
+- [User profiles](https://supermemory.ai/docs/recall/user-profiles.md): Fetch and use automatically maintained user context
+- [Memory Operations](https://supermemory.ai/docs/recall/memory-operations.md): Forget extracted memories exactly or by meaning
+- [Review inferred memories](https://supermemory.ai/docs/recall/memory-review.md): List low-confidence inferred memories, then approve, decline or undo them.
+- [SMFS](https://supermemory.ai/docs/smfs/overview.md): Memory your agent can grep.
+- [Install SMFS](https://supermemory.ai/docs/smfs/install.md): Install, log in, mount.
+- [Mount](https://supermemory.ai/docs/smfs/mount.md): Mount a Supermemory container, generate memories, and sync.
+- [Bash tool](https://supermemory.ai/docs/smfs/bash-tool.md): @supermemory/bash. The SMFS idea wrapped as a single agent tool, for serverless and edge runtimes.
+- [Bash tool (Python)](https://supermemory.ai/docs/smfs/bash-tool-python.md): supermemory-bash. The SMFS idea wrapped as a single agent tool, for Python agents and serverless runtimes.
+- [Daytona](https://supermemory.ai/docs/smfs/providers/daytona.md): Give your AI agent persistent memory inside a Daytona sandbox using SMFS
+- [E2B](https://supermemory.ai/docs/smfs/providers/e2b.md): Give your AI agent persistent memory inside an E2B sandbox using SMFS
+- [Vercel AI SDK](https://supermemory.ai/docs/smfs/providers/vercel.md): Give your AI agent persistent memory using SMFS with the Vercel AI SDK
+- [Cloudflare](https://supermemory.ai/docs/smfs/providers/cloudflare.md): Give your AI agent persistent memory inside a Cloudflare Container using SMFS
+- [Examples](https://supermemory.ai/docs/smfs/examples.md): Full web-based demo apps you can clone and run.
+- [Rules of supermemory](https://supermemory.ai/docs/concepts/rules.md): Best practices and things to consider when using supermemory in your system
+- [Supermemory local](https://supermemory.ai/docs/self-hosting/overview.md): State-of-the-art memory, running on your machine. One binary, zero config.
+- [Self-hosting quickstart](https://supermemory.ai/docs/self-hosting/quickstart.md): From zero to your first memory in under two minutes.
+- [Run Supermemory with Docker](https://supermemory.ai/docs/self-hosting/docker.md): Start the prebuilt Local image, keep your data, and upgrade an existing Compose installation.
+- [Self-hosting configuration](https://supermemory.ai/docs/self-hosting/configuration.md): Every environment variable the self-hosted server understands.
+- [Embeddings (self-hosted)](https://supermemory.ai/docs/self-hosting/embeddings.md): Local and remote embedding providers for Supermemory local: defaults, env vars, multilingual options and dimension lock.
+- [Using supermemory local with different providers](https://supermemory.ai/docs/self-hosting/providers.md): Copy-paste .env setup for Ollama, OpenAI, Anthropic, Gemini, and OpenRouter
+- [Local vs. Enterprise](https://supermemory.ai/docs/self-hosting/local-vs-enterprise.md): Supermemory local is for builders. Supermemory Enterprise is for organizations.
+- [How to backfill historical data into Supermemory](https://supermemory.ai/docs/ingestion/batch-ingest-historical-data.md): Backfill historical documents into Supermemory with date, stable IDs, and the batch ingestion API.
+- [MemoryBench](https://supermemory.ai/docs/memorybench/overview.md): Open-source framework for benchmarking memory providers, including your own.
+- [Building a benchmark](https://supermemory.ai/docs/memorybench/extend-benchmark.md): Add a custom benchmark dataset when the built-in ones don't match your use case
+- [Adding a provider](https://supermemory.ai/docs/memorybench/extend-provider.md): Register your own memory implementation so MemoryBench can score and compare it
+- [Measuring results](https://supermemory.ai/docs/memorybench/memscore.md): How MemoryBench scores a run with qualitative judging and quantitative metrics.
+- [Billing & usage](https://supermemory.ai/docs/overview/billing.md): How Supermemory metering works: SM tokens, operations, search, SuperRAG, plans, diff billing and the usage APIs.
+- [Security & compliance](https://supermemory.ai/docs/overview/security.md): How Supermemory protects data: encryption, isolation, SOC 2, GDPR, HIPAA BAA and deletion.
+- [Use cases](https://supermemory.ai/docs/overview/use-cases.md): What teams build with Supermemory: agents, knowledge bases, multi-tenant products and tools.
+- [Analytics & monitoring](https://supermemory.ai/docs/overview/analytics.md): Observe usage, errors, and logs to monitor your Supermemory integration
+- [Migrate Supermemory v3/v4 to v5](https://supermemory.ai/docs/migration/api-v5.md): Upgrade legacy API calls to the namespace-scoped v5 API
+- [Migrate document ingestion to v5](https://supermemory.ai/docs/migration/api-v5-document-writes.md): Upgrade single, batch, and file ingestion without changing append behavior
+- [Migrate document and file updates to v5](https://supermemory.ai/docs/migration/api-v5-document-updates.md): Choose append, replacement, or metadata-only updates deliberately
+- [Migrate content management to v5](https://supermemory.ai/docs/migration/api-v5-document-reads.md): Upgrade document retrieval, resource lists, and document or memory deletion
+- [Migrate search to v5](https://supermemory.ai/docs/migration/api-v5-recall.md): Upgrade search modes, filters, included context, defaults, and response readers
+- [Migrate profiles and buckets to v5](https://supermemory.ai/docs/migration/api-v5-profiles.md): Separate profile retrieval from search and manage namespace-owned buckets
+- [Migrate memory forgetting to v5](https://supermemory.ai/docs/migration/api-v5-memory-forgetting.md): Replace legacy exact and semantic forgetting with one response contract
+- [Migrate container tags to namespaces](https://supermemory.ai/docs/migration/api-v5-settings.md): Upgrade namespace discovery, settings, deletion, and moves
+- [Migrate organization settings to v5](https://supermemory.ai/docs/migration/api-v5-organization.md): Reduce organization settings to shared context and namespace count
+- [Migrate metadata filters to v5](https://supermemory.ai/docs/migration/api-v5-filters.md): Convert legacy Query filters into strict, type-safe v5 filter expressions
+- [Verify and roll out a v5 migration](https://supermemory.ai/docs/migration/api-v5-rollout.md): Prove behavioral parity, detect intentional differences, and cut over safely
+- [Migrating from Mem0 to Supermemory](https://supermemory.ai/docs/migration/from-mem0.md): Complete guide to migrate your data and applications from Mem0 to Supermemory
+- [Migrating from Zep to Supermemory](https://supermemory.ai/docs/migration/from-zep.md): Quick guide to migrate from Zep to Supermemory
+- [Supermemory SDK](https://supermemory.ai/docs/integrations/supermemory-sdk.md): Official Python and JavaScript SDKs for Supermemory
+- [Vercel AI SDK](https://supermemory.ai/docs/integrations/ai-sdk.md): Use Supermemory with Vercel AI SDK for seamless memory management
+- [Eve](https://supermemory.ai/docs/integrations/eve.md): Give your Eve agent memory across conversations with Supermemory.
+- [OpenAI SDK](https://supermemory.ai/docs/integrations/openai.md): Memory tools for OpenAI function calling with Supermemory integration
+- [LangGraph](https://supermemory.ai/docs/integrations/langgraph.md): Add persistent memory to LangGraph agents with Supermemory
+- [OpenAI Agents SDK](https://supermemory.ai/docs/integrations/openai-agents-sdk.md): Add persistent memory to OpenAI agents with Supermemory
+- [Microsoft Agent Framework](https://supermemory.ai/docs/integrations/agent-framework.md): Add persistent memory to Microsoft Agent Framework agents with Supermemory
+- [Mastra](https://supermemory.ai/docs/integrations/mastra.md): Add persistent memory to Mastra AI agents with Supermemory processors
+- [VoltAgent](https://supermemory.ai/docs/integrations/voltagent.md): Integrate Supermemory with VoltAgent for long-term memory in AI agents
+- [Convex](https://supermemory.ai/docs/integrations/convex.md): Add persistent memory to Convex apps with Supermemory
+- [LangChain](https://supermemory.ai/docs/integrations/langchain.md): Build AI agents with persistent memory using LangChain and Supermemory
+- [CrewAI](https://supermemory.ai/docs/integrations/crewai.md): Add persistent memory to CrewAI agents with Supermemory
+- [Agno](https://supermemory.ai/docs/integrations/agno.md): Add persistent memory to Agno agents with Supermemory
+- [Memory Graph](https://supermemory.ai/docs/integrations/memory-graph.md): Interactive visualization for documents, memories and connections
+- [Claude Memory Tool](https://supermemory.ai/docs/integrations/claude-memory.md): Use Claude's native memory tool with Supermemory as the backend
+- [Pipecat](https://supermemory.ai/docs/integrations/pipecat.md): Integrate Supermemory with Pipecat for conversational memory in voice AI agents
+- [Cartesia](https://supermemory.ai/docs/integrations/cartesia.md): Integrate Supermemory with Cartesia for conversational memory in voice AI agents
+- [LiveKit](https://supermemory.ai/docs/integrations/livekit.md): Add persistent memory to LiveKit Agents voice sessions
+- [n8n](https://supermemory.ai/docs/integrations/n8n.md): Automate knowledge management with Supermemory in n8n workflows
+- [viaSocket](https://supermemory.ai/docs/integrations/viasocket.md): Connect Supermemory with viaSocket to build automation flows using triggers, API tokens, and actions like Gmail.
+- [Zapier](https://supermemory.ai/docs/integrations/zapier.md): Automate memory management with Supermemory in Zapier workflows
+- [Upgrading @supermemory/tools to 3.0](https://supermemory.ai/docs/migration/tools-v3-upgrade.md): Migrate from @supermemory/tools 2.x to 3.0: one namespace per config, v5 option names, conversations stored as documents.
+- [Upgrading @supermemory/tools to v2.0.0](https://supermemory.ai/docs/migration/tools-v2-upgrade.md): Migrate from @supermemory/tools 1.4.x to 2.0.0: the config-object signature, customId and new defaults.
+- [API reference](https://supermemory.ai/docs/api-reference/overview.md): Interactive reference for the Supermemory HTTP API: ingest, search, profiles, memories, connectors and settings.
+- [API keys & auth](https://supermemory.ai/docs/authentication.md): Org API keys, namespace-scoped keys, and connector branding.
+- [Ingest](https://supermemory.ai/docs/api-reference/ingest.md): Add documents, files, batches, and conversations to Supermemory.
+- [Add document](https://supermemory.ai/docs/api-reference/ingest/add-document.md): Add a document with any content type (text, url, file, etc.) and metadata
+- [Upload a file](https://supermemory.ai/docs/api-reference/ingest/upload-a-file.md): Upload a file to be processed
+- [Batch add documents](https://supermemory.ai/docs/api-reference/ingest/batch-add-documents.md): Add multiple documents in a single request. Each document can have any content type (text, url, file, etc.) and metadata
+- [Ingest or update conversation](https://supermemory.ai/docs/api-reference/ingest/ingest-or-update-conversation.md): Ingest or update a conversation
+- [Get document](https://supermemory.ai/docs/api-reference/documents/get-document.md): Get a document by ID
+- [Recall](https://supermemory.ai/docs/api-reference/search.md): Semantic search over memories, document chunks or both, plus user profiles.
+- [Search memory entries](https://supermemory.ai/docs/api-reference/recall-search/search-memory-entries.md): Search memory entries - Low latency for conversational
+- [Search documents](https://supermemory.ai/docs/api-reference/documents/search-documents.md): Search memories with advanced filtering
+- [Profiles](https://supermemory.ai/docs/api-reference/profiles.md): Static and dynamic facts about an entity, scoped to a container.
+- [Get user profile](https://supermemory.ai/docs/api-reference/profiles/get-user-profile.md): Get user profile with optional search results
+- [Get profile buckets](https://supermemory.ai/docs/api-reference/profiles/get-profile-buckets.md): Returns the effective profile bucket definitions for a given container tag — org-level buckets merged with any container-tag-level additions.
+- [Documents](https://supermemory.ai/docs/api-reference/documents.md): List, get status, update, delete, and inspect ingested documents.
+- [List documents](https://supermemory.ai/docs/api-reference/documents/list-documents.md): Retrieves a paginated list of documents with their metadata and workflow status
+- [Get processing documents](https://supermemory.ai/docs/api-reference/documents/get-processing-documents.md): Get documents that are currently being processed. Default `view=active` is the live in-flight queue. `view=pending` is every unfinished document with no time cutoff. `view=all` also includes failed documents, paginated.
+- [Update document](https://supermemory.ai/docs/api-reference/ingest/update-document.md): Update a document with any content type (text, url, file, etc.) and metadata
+- [Delete document by ID or customId](https://supermemory.ai/docs/api-reference/ingest/delete-document-by-id-or-customid.md): Delete a document by ID or customId
+- [Bulk delete documents](https://supermemory.ai/docs/api-reference/ingest/bulk-delete-documents.md): Bulk delete documents by IDs or container tags
+- [Get document chunks](https://supermemory.ai/docs/api-reference/documents/get-document-chunks.md): Get all chunks for a document, ordered by position
+- [Get presigned file URL](https://supermemory.ai/docs/api-reference/documents/get-presigned-file-url.md): Get a fresh presigned URL for a document's file. Returns a time-limited URL (24h) that can be used to download the file.
+- [Memories](https://supermemory.ai/docs/api-reference/memories.md): Create, list, update, and forget extracted memory entries (v4).
+- [Create memories directly](https://supermemory.ai/docs/api-reference/content-management/create-memories-directly.md): Create memories directly, bypassing the document ingestion workflow. Generates embeddings and makes them immediately searchable.
+- [List memory entries with history](https://supermemory.ai/docs/api-reference/content-management/list-memory-entries-with-history.md): List all latest memory entries from specified container tags with their update history and source documents
+- [Update a memory (creates new version)](https://supermemory.ai/docs/api-reference/content-management/update-a-memory-creates-new-version.md): Update a memory by creating a new version. The original memory is preserved with isLatest=false.
+- [Forget a memory](https://supermemory.ai/docs/api-reference/content-management/forget-a-memory.md): Forget (soft delete) a memory entry. The memory is marked as forgotten but not permanently deleted.
+- [Forget memories matching a prompt/query](https://supermemory.ai/docs/api-reference/content-management/forget-memories-matching-a-promptquery.md): Agentic mass-forget. Given a prompt or query, a tool-calling agent searches the container's memories and soft-deletes everything matching the target. Use dryRun to preview first.
+- [Container tags](https://supermemory.ai/docs/api-reference/container-tags.md): Settings, merge and delete for multi-tenant containers.
+- [Get container tag settings](https://supermemory.ai/docs/api-reference/container-tags/get-container-tag-settings.md): Get settings for a container tag
+- [Update container tag settings](https://supermemory.ai/docs/api-reference/container-tags/update-container-tag-settings.md): Update settings for a container tag
+- [Delete container tag](https://supermemory.ai/docs/api-reference/container-tags/delete-container-tag.md): Delete a container tag and all its documents and memories. Only organization owners and admins can perform this action.
+- [Merge container tags](https://supermemory.ai/docs/api-reference/container-tags/merge-container-tags.md): Merge multiple container tags into a target tag. All documents from the source tags will be updated to reference the target tag, and the source tags will be deleted after successful merge.
+- [Get container tag merge status](https://supermemory.ai/docs/api-reference/container-tags/get-container-tag-merge-status.md): Get queued container tag merge status
+- [Connections](https://supermemory.ai/docs/api-reference/connections.md): Create, configure, sync and manage external connectors.
+- [Create connection](https://supermemory.ai/docs/api-reference/connections/create-connection.md): Initialize connection and get authorization URL
+- [List connections](https://supermemory.ai/docs/api-reference/connections/list-connections.md): List all connections
+- [Get connection (by id)](https://supermemory.ai/docs/api-reference/connections/get-connection-by-id.md): Get connection details with id
+- [Configure connection](https://supermemory.ai/docs/api-reference/connections/configure-connection.md): Configure resources for a connection (supported providers: GitHub for now)
+- [Fetch resources](https://supermemory.ai/docs/api-reference/connections/fetch-resources.md): Fetch resources for a connection (supported providers: GitHub for now)
+- [Sync connection](https://supermemory.ai/docs/api-reference/connections/sync-connection.md): Initiate a manual sync of connections
+- [List documents](https://supermemory.ai/docs/api-reference/connections/list-documents.md): List documents indexed for a provider and container tags
+- [Get connection (by provider)](https://supermemory.ai/docs/api-reference/connections/get-connection-by-provider.md): Get connection details with provider and container tags
+- [Delete connection by ID](https://supermemory.ai/docs/api-reference/connections/delete-connection-by-id.md): Delete a specific connection by ID
+- [Delete connection](https://supermemory.ai/docs/api-reference/connections/delete-connection.md): Delete connection for a specific provider and container tags
+- [Settings](https://supermemory.ai/docs/api-reference/settings.md): Organization settings, profile buckets, and data reset.
+- [Get settings](https://supermemory.ai/docs/api-reference/settings/get-settings.md): Get settings for an organization
+- [Update settings](https://supermemory.ai/docs/api-reference/settings/update-settings.md): Update settings for an organization
+- [Suggest profile buckets](https://supermemory.ai/docs/api-reference/settings/suggest-profile-buckets.md): Suggest profile bucket definitions based on the organization context prompt. Returns 3–6 bucket suggestions tailored to the use-case described in the prompt.
+- [Reset organization data](https://supermemory.ai/docs/api-reference/settings/reset-organization-data.md): Reset organization content: removes documents, memories, spaces (except default project), connections, and org settings. Preserves the org, members, and billing.
+- [Send feedback](https://supermemory.ai/docs/api-reference/feedback/send-feedback.md): Report a bug, request a feature or flag a docs problem to the Supermemory team. Built for AI agents: send structured JSON and an engineer picks it up.
+- [API reference](https://supermemory.ai/docs/v5/api-reference/overview.md): Documents, search, profiles, lists, memories, namespaces, and organization settings in the latest Supermemory API
+- [API keys & auth](https://supermemory.ai/docs/authentication.md): Org API keys, namespace-scoped keys, and connector branding.
+- [Ingest](https://supermemory.ai/docs/v5/api-reference/ingest.md): Turn source content into searchable memory and keep it current
+- [Add document](https://supermemory.ai/docs/v5/api-reference/ingest/add-document.md): Turn text or a supported URL into searchable, evolving memory. Supply a new ID to create a document, or reuse an existing ID to append new information while preserving its history.
+- [Batch add documents](https://supermemory.ai/docs/v5/api-reference/ingest/batch-add-documents.md): Build a knowledge base efficiently by ingesting up to 600 text or URL documents at once. Existing caller-defined IDs append new information using the same semantics as single-document ingestion.
+- [Upload file](https://supermemory.ai/docs/v5/api-reference/ingest/upload-file.md): Transform an uploaded file into searchable knowledge and learned memory. The response returns as soon as ingestion is safely queued while extraction and memory formation continue asynchronously.
+- [Update document](https://supermemory.ai/docs/v5/api-reference/ingest/update-document.md): Refresh an existing document without changing its stable ID. Supplied content replaces the canonical content and is reprocessed; omitted fields remain unchanged.
+- [Replace document with file](https://supermemory.ai/docs/v5/api-reference/ingest/replace-document-with-file.md): Replace an existing document with a new file while keeping its stable document ID. Content and caller metadata are overwritten, then the document is reprocessed asynchronously.
+- [Partially update document file](https://supermemory.ai/docs/v5/api-reference/ingest/partially-update-document-file.md): Refresh only the file-backed fields you provide. Supplying a file replaces the canonical content; omitted metadata and processing context remain unchanged.
+- [Content management](https://supermemory.ai/docs/v5/api-reference/content-management.md): Retrieve, list, and remove documents, chunks, and memories
+- [Get document](https://supermemory.ai/docs/v5/api-reference/content-management/get-document.md): Retrieve a document's canonical content, metadata, and processing state by document ID or caller-defined ID. Optionally include its source chunks, derived memories, or both in the same response.
+- [List resources](https://supermemory.ai/docs/v5/api-reference/content-management/list-resources.md): Browse documents, source chunks, or learned memories through one predictable paginated contract. Choose the collection in the path; the other collection arrays remain empty for a stable response shape.
+- [Delete documents](https://supermemory.ai/docs/v5/api-reference/content-management/delete-documents.md): Permanently remove documents and their derived knowledge by document ID or caller-defined ID. Each requested ID is handled independently so successful deletions are preserved when another ID fails.
+- [Forget memories by ID](https://supermemory.ai/docs/v5/api-reference/content-management/forget-memories-by-id.md): Remove exact memories from normal recall while preserving their audit history. Each ID is handled independently and any missing or ineligible memory is reported without rolling back successful changes.
+- [Forget memories semantically](https://supermemory.ai/docs/v5/api-reference/content-management/forget-memories-semantically.md): Describe what should be forgotten in natural language, then preview or apply the matching set. Use dry-run results with the exact-ID endpoint when you need a reviewable, drift-free workflow.
+- [Search](https://supermemory.ai/docs/v5/api-reference/search.md): Recall the most relevant memories and source context
+- [Search memories](https://supermemory.ai/docs/v5/api-reference/recall-search/search-memories.md): Recall the most relevant learned context and source passages from a namespace. Hybrid search combines memories with document chunks by default, with optional query rewriting, reranking, and supporting context attachments.
+- [Profiles](https://supermemory.ai/docs/v5/api-reference/profiles.md): Turn accumulated memory into a ready-to-use understanding of a user
+- [Get profile](https://supermemory.ai/docs/v5/api-reference/profiles/get-profile.md): Read a continuously maintained understanding of the subject represented by this namespace. Stable facts, evolving context, and selected custom buckets are returned together without requiring a search query.
+- [Get profile buckets](https://supermemory.ai/docs/v5/api-reference/profiles/get-profile-buckets.md): Inspect the profile taxonomy active in this namespace. The response combines organization-wide buckets with namespace-owned additions as a concise name-to-description map.
+- [Add or update profile buckets](https://supermemory.ai/docs/v5/api-reference/profiles/add-or-update-profile-buckets.md): Teach Supermemory new ways to organize this namespace's profile, or refine how existing namespace-owned buckets are classified. Omitted buckets remain unchanged and organization-wide buckets stay protected.
+- [Delete profile buckets](https://supermemory.ai/docs/v5/api-reference/profiles/delete-profile-buckets.md): Remove profile categories created specifically for this namespace. Unknown names are safely ignored, while organization-wide buckets remain protected.
+- [Namespaces](https://supermemory.ai/docs/v5/api-reference/namespaces.md): Keep memory isolated, understandable, and easy to reorganize
+- [List namespaces](https://supermemory.ai/docs/v5/api-reference/namespaces/list-namespaces.md): Discover every namespace available to the caller, including its purpose, document volume, memory count, and lifecycle timestamps.
+- [Get namespace settings](https://supermemory.ai/docs/v5/api-reference/namespaces/get-namespace-settings.md): Read the supporting context that helps Supermemory understand content and form better memories inside this namespace.
+- [Update namespace settings](https://supermemory.ai/docs/v5/api-reference/namespaces/update-namespace-settings.md): Shape how Supermemory understands an existing namespace by updating the background context used during ingestion and memory formation.
+- [Delete namespace](https://supermemory.ai/docs/v5/api-reference/namespaces/delete-namespace.md): Retire a namespace by permanently deleting its content, or preserve that knowledge by moving everything into another namespace first. Moves are queued and complete asynchronously.
+- [Connectors](https://supermemory.ai/docs/v5/api-reference/connectors.md): Sync Notion, Google Drive, Gmail, GitHub, websites, S3 buckets, and Granola into a namespace
+- [Create connector](https://supermemory.ai/docs/v5/api-reference/connectors/create-connector.md): Connect an external source to this namespace. OAuth providers return an authorization url to send the user to; providers that authenticate with config start syncing right away.
+- [List connectors](https://supermemory.ai/docs/v5/api-reference/connectors/list-connectors.md): List the connectors that sync into this namespace.
+- [Get connector](https://supermemory.ai/docs/v5/api-reference/connectors/get-connector.md): Read one connector. Add include=syncs to include its recent sync runs and the items that failed. include=picker needs an admin with write access, since the link changes what syncs.
+- [Update connector](https://supermemory.ai/docs/v5/api-reference/connectors/update-connector.md): Change what a connector syncs. A new selection replaces the old one and starts a sync.
+- [Sync connector](https://supermemory.ai/docs/v5/api-reference/connectors/sync-connector.md): Start a sync now. Returns 409 while a sync for this connector is already running.
+- [Delete connector](https://supermemory.ai/docs/v5/api-reference/connectors/delete-connector.md): Disconnect a connector and stop its webhooks. Its imported documents are deleted too unless deleteDocuments is false.
+- [List all connectors](https://supermemory.ai/docs/v5/api-reference/connectors/list-all-connectors.md): List connectors across every namespace this key can read. Use it for admin views that span users or projects.
+- [Organization](https://supermemory.ai/docs/v5/api-reference/organization.md): Give every namespace a shared understanding of your organization
+- [Get organization settings](https://supermemory.ai/docs/v5/api-reference/organization/get-organization-settings.md): Read the shared background that guides memory formation across the organization, together with the number of active namespaces.
+- [Update organization settings](https://supermemory.ai/docs/v5/api-reference/organization/update-organization-settings.md): Give Supermemory organization-wide background that improves how content is interpreted across every namespace. Send null to remove the existing context.
+- [Send feedback](https://supermemory.ai/docs/v5/api-reference/feedback/send-feedback.md): Report a bug, request a feature or flag a docs problem to the Supermemory team. Built for AI agents: send structured JSON and an engineer picks it up.
+- [Overview](https://supermemory.ai/docs/supermemory-mcp/mcp.md): Give every MCP-compatible assistant shared memory, team spaces, and interactive workflows
+- [Setup and usage](https://supermemory.ai/docs/supermemory-mcp/setup.md): Connect Supermemory to an MCP client with OAuth and choose how requests use spaces
+- [ChatGPT Web](https://supermemory.ai/docs/supermemory-mcp/chatgpt-web.md): Connect Supermemory MCP to ChatGPT Web and make Supermemory the default for memory, recall, and saved context
+- [Claude Desktop](https://supermemory.ai/docs/supermemory-mcp/claude-desktop.md): Connect Supermemory MCP in Claude via Settings → Connectors
+- [OpenClaw](https://supermemory.ai/docs/integrations/openclaw.md): Supermemory plugin for OpenClaw. Works across Telegram, WhatsApp, Discord, Slack and more.
+- [Hermes](https://supermemory.ai/docs/integrations/hermes.md): Supermemory plugin for Hermes. Semantic memory, profiles and search across Telegram, Discord, Slack, the CLI and more.
+- [Claude Code](https://supermemory.ai/docs/integrations/claude-code.md): Supermemory plugin for Claude Code. Keeps memory across coding sessions.
+- [Muse Code](https://supermemory.ai/docs/integrations/muse-code.md): Persistent memory for Meta Muse Code with the muse-supermemory plugin.
+- [Codex](https://supermemory.ai/docs/integrations/codex.md): Persistent memory for the OpenAI Codex CLI with the codex-supermemory plugin.
+- [OpenCode](https://supermemory.ai/docs/integrations/opencode.md): Supermemory plugin for OpenCode. Keeps memory across coding sessions.
+- [Cursor](https://supermemory.ai/docs/integrations/cursor.md): cursor-supermemory: persistent memory across your Cursor chats
+- [Grok Bot](https://supermemory.ai/docs/integrations/grok-bot.md): Supermemory for Grok Bot: persistent memory for your Grok Bots
+
+## OpenAPI Specs
+
+- [openapi](https://api.supermemory.ai/v4/openapi)
+- [openapi](https://api.supermemory.ai/v5/openapi)
+
+
+This documentation is built and hosted on [Mintlify](https://mintlify.com), a developer documentation platform.
