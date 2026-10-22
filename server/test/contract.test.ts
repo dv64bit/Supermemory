@@ -137,3 +137,25 @@ test("file upload: pdf and markdown ingest with their type; unsupported types ar
   expect(bad.status).toBe(400);
   expect((await bad.json()).error).toContain("unsupported");
 });
+
+test("legacy v3/v4 shims used by the browser extension", async () => {
+  const req = (path: string, body?: unknown) => fetch(`http://localhost:${server.port}${path}`, {
+    method: body ? "POST" : "GET", headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: body ? JSON.stringify(body) : undefined,
+  }).then(async (r) => ({ status: r.status, body: await r.json() }));
+
+  const saved = await req("/v3/documents", { content: "Saved from the extension", containerTags: ["sm_project_ext"], customId: "ext-1", metadata: { sm_source: "consumer", nested: { a: 1 } } });
+  expect(saved.status).toBe(200);
+  expect(saved.body.id).toBe("ext-1");
+  const batch = await req("/v3/documents/batch", { documents: [{ content: "tweet one", containerTags: ["sm_project_twitter"] }, { content: "tweet two", containerTags: ["sm_project_twitter"] }], metadata: { sm_source: "consumer" } });
+  expect(batch.body.count).toBe(2);
+  await drain();
+
+  const doc = await client.documents.get("sm_project_ext", "ext-1");
+  expect(doc.metadata).toEqual({ sm_source: "consumer", nested: '{"a":1}' });
+  const projects = await req("/v3/projects");
+  expect(projects.body.projects.map((p: any) => p.containerTag)).toEqual(expect.arrayContaining(["sm_project_ext", "sm_project_twitter"]));
+
+  const search = await req("/v4/search", { q: "extension", containerTag: "sm_project_ext", include: { relatedMemories: true } });
+  expect(search.status).toBe(200);
+  expect(Array.isArray(search.body.results)).toBe(true); // fake LLM forms no memories here; shape is what matters
+});

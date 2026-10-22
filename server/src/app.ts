@@ -8,6 +8,7 @@ import { buckets, BUILTIN_BUCKETS, profile } from "./profile";
 import { forgetSemantic } from "./forget";
 import { mountMcp } from "./mcp";
 import { mountChat } from "./chat";
+import { mountLegacy } from "./legacy";
 import { extractFile, MAX_FILE, UnsupportedFile } from "./extract";
 
 const nsParam = z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/);
@@ -377,6 +378,7 @@ export function createApp(apiKey: string) {
   });
 
   mountChat(app, apiKey);
+  mountLegacy(app, apiKey);
   mountMcp(app, apiKey);
   return app;
 }
