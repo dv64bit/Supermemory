@@ -4,7 +4,7 @@ Personal, self-hosted rebuild of [supermemory.ai](https://supermemory.ai). It sp
 
 - `server/`: Bun + Hono + Postgres (pgvector). It handles ingest, chunking, local embeddings, memory formation ("dreaming") with a local LLM, hybrid search, profiles, forgetting and MCP.
 - `web/`: React 19 UI built with [affectUI](https://www.affectui.com)'s free components and design language. See `web/README.md`.
-- `PLAN.md` and `PRD.md` describe the roadmap. `ref/` holds the upstream OpenAPI specs and docs.
+- `PLAN.md` and `PRD.md` describe the v1 roadmap. `docs/v2/` holds the v2 plan, PRD, resume notes and gap report; v2 wins where they conflict. `ref/` holds the upstream OpenAPI specs and docs.
 
 ## Run
 
