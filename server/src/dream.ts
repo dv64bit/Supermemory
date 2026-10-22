@@ -63,29 +63,28 @@ const expiry = (s: string | null, docDate: Date) => {
   return d && d > docDate ? d : null;
 };
 
-export async function dream(docPk: number) {
-  const [doc] = await sql`
-    select d.pk, d.ns, d.content, d.metadata, coalesce(d.supporting_context, n.supporting_context) as ctx,
-           coalesce(d.doc_date, d.created_at) as doc_date
-    from documents d join namespaces n on n.id = d.ns where d.pk = ${docPk}`;
-  if (!doc?.content?.trim()) return;
-
+/** Extraction as the engine runs it (D1 today): one call over the whole unit, capped at MAX_CANDIDATES. */
+export async function extractCandidates(ns: string, unit: { content: string; documentDate: Date; supportingContext: string | null }) {
   // Custom profile buckets ride along with extraction; "preferences" is assigned by kind.
-  const custom = await sql`select name, description from profile_buckets where ns = ${doc.ns} order by name`;
+  const custom = await sql`select name, description from profile_buckets where ns = ${ns} order by name`;
   const { memories } = await call<{ memories: Candidate[] }>(
     "extract",
     custom.length ? "extract-buckets.v1" : "extract.v1",
     {
-      supportingContext: doc.ctx, documentDate: doc.doc_date.toISOString(), content: doc.content,
+      supportingContext: unit.supportingContext, documentDate: unit.documentDate.toISOString(), content: unit.content,
       ...(custom.length && { buckets: Object.fromEntries(custom.map((b: any) => [b.name, b.description])) }),
     },
     custom.length ? withBucket(custom.map((b: any) => b.name)) : extractSchema,
   );
-  const bucketNames = new Set(custom.map((b: any) => b.name));
-  const cands = memories.filter((m) => m.content?.trim()).slice(0, MAX_CANDIDATES);
-  if (!cands.length) return;
-  const vecs = await embed(cands.map((c) => c.content));
+  const bucketNames = new Set<string>(custom.map((b: any) => b.name));
+  return { cands: memories.filter((m) => m.content?.trim()).slice(0, MAX_CANDIDATES), bucketNames };
+}
 
+/**
+ * Relation decisions as the engine makes them today: per candidate, the nearest live memories (vector top-k above a
+ * similarity floor), a near-duplicate shortcut, then one batched LLM call. `target` indexes into `neighbors`.
+ */
+export async function relateCandidates(ns: string, cands: { content: string }[], vecs: number[][]) {
   // Nearest live memories per candidate, numbered globally so the LLM can point at them.
   const neighbors: Neighbor[] = [];
   const neighborIdx = new Map<number, number>();
@@ -93,7 +92,7 @@ export async function dream(docPk: number) {
   for (const v of vecs) {
     const rows = (await sql`
       select pk, id, content, version, root_id, 1 - (embedding <=> ${toVector(v)}::vector) as sim from memories
-      where ns = ${doc.ns} and is_latest and not is_forgotten
+      where ns = ${ns} and is_latest and not is_forgotten
         and 1 - (embedding <=> ${toVector(v)}::vector) >= ${NEIGHBOR_MIN_SIM}
       order by embedding <=> ${toVector(v)}::vector limit ${NEIGHBORS}`) as Neighbor[];
     candNeighbors.push(rows.map((r) => {
@@ -117,6 +116,21 @@ export async function dream(docPk: number) {
       if (d.relation === "new" || (d.target !== null && candNeighbors[d.i]?.includes(d.target))) decisions.set(d.i, d);
     }
   }
+
+  return { neighbors, candNeighbors, decisions };
+}
+
+export async function dream(docPk: number) {
+  const [doc] = await sql`
+    select d.pk, d.ns, d.content, d.metadata, coalesce(d.supporting_context, n.supporting_context) as ctx,
+           coalesce(d.doc_date, d.created_at) as doc_date
+    from documents d join namespaces n on n.id = d.ns where d.pk = ${docPk}`;
+  if (!doc?.content?.trim()) return;
+
+  const { cands, bucketNames } = await extractCandidates(doc.ns, { content: doc.content, documentDate: doc.doc_date, supportingContext: doc.ctx });
+  if (!cands.length) return;
+  const vecs = await embed(cands.map((c) => c.content));
+  const { neighbors, candNeighbors, decisions } = await relateCandidates(doc.ns, cands, vecs);
 
   const inserted: { pk: number; content: string; related: number[] }[] = [];
   await sql.begin(async (tx) => {

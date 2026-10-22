@@ -7,6 +7,8 @@ type Handlers = {
   derive?: (memories: { j: number; content: string }[]) => { content: string; from: number[] }[];
   forget?: (input: { request: string; candidates: { j: number; content: string }[] }) => number[];
   chat?: (messages: { role: string; content: string }[]) => string;
+  /** Evals only: gets the parsed input and the prompt name (first line "TASK: <name>"); returns the JSON reply. */
+  judge?: (input: any, task: string) => unknown;
   /** Raw reply text per role, bypassing the handlers above (e.g. to send invalid JSON). Called once per request. */
   raw?: (role: string, attempt: number) => string | undefined;
 };
@@ -43,6 +45,7 @@ export function startFakeLlm(h: Handlers = {}) {
       } else if (role === "relate") out = { decisions: input.candidates.map((c: any) => ({ i: c.i, ...(h.relate?.(c) ?? { relation: "new", target: null }) })) };
       else if (role === "derive") out = { inferences: h.derive?.(input.memories) ?? [] };
       else if (role === "forget") out = { forget: h.forget?.(input) ?? [] };
+      else if (role === "judge" && h.judge) out = h.judge(input, body.messages[0].content.match(/^TASK: (\S+)/)?.[1] ?? "");
       else return new Response(`unknown role ${role}`, { status: 400 });
       return reply(JSON.stringify(out));
     },

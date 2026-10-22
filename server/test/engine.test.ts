@@ -1,6 +1,8 @@
 // Seam 2: memory formation through the public API, with a scripted LLM so mechanics are deterministic.
 import { beforeAll, afterAll, expect, test } from "bun:test";
 import { freshDb, startFakeLlm } from "./fake-llm";
+import { target } from "./targets";
+import { KNOWN_V5_MISMATCHES, validatingFetch } from "./v5-schema";
 
 const has = (s: string, ...words: string[]) => words.every((w) => s.toLowerCase().includes(w.toLowerCase()));
 
@@ -45,7 +47,7 @@ let client: InstanceType<typeof Supermemory>;
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp("k").fetch });
-  client = new Supermemory({ apiKey: "k", baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  client = new Supermemory({ apiKey: "k", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
@@ -227,4 +229,12 @@ test("an expiry at or before the document date is ignored (lasting fact stays li
   await sweep();
   const list = await client.list(NS, "memories", {});
   expect(list.memories!.some((m) => m.memory.includes("Pune"))).toBe(true);
+});
+
+// Known v5 deviation (GAP_REPORT §3 #2), scheduled for P4: make it a plain `test` once it passes (see ./targets.ts).
+target("v5 mismatch (P4): memories.get with include=documents returns the source document", async () => {
+  const list = await client.list(NS, "memories", {});
+  const fromDoc = list.memories!.find((m) => m.memory.includes("Stripe"))!;
+  const m = await client.memories.get(NS, fromDoc.id, { include: ["documents"] });
+  expect(m.included?.document?.id).toBe("d2");
 });

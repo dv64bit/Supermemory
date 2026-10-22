@@ -26,6 +26,10 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "test": "fail=0; for f in test/*.test.ts; do bun test $f || fail=1; done; exit $fail"
+    "test": "fail=0; for f in test/*.test.ts; do bun test $f || fail=1; done; exit $fail",
+    "eval:e1": "bun ../eval/e1.ts",
+    "eval:e2": "bun ../eval/e2/run.ts",
+    "eval:latency": "bun ../eval/bench/latency.ts",
+    "eval:compare": "bun ../eval/compare.ts"
   }
 }

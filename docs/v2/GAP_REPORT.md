@@ -182,6 +182,12 @@ React 19 + Vite + react-router + d3-force with affectUI components. It is **not*
 
 The SDK contract test passes anyway because it never exercises (1)–(4).
 
+> **Addendum (P1-B, 2026-10-22):** checking every response against `ref/v5.json` found a mismatch this audit missed.
+>
+> 7. **`list/{type}` returns only the requested array.** The spec requires `documents`, `chunks`, `memories` and `pagination` on every list response, with the unrequested arrays empty (`app.ts:312,318,326`).
+>
+> All five shape mismatches (1–4 and 7) now have `test.failing` tests, scheduled for P4.
+
 ### Extensions that should live under `/ns/{ns}/x/…` per v2
 
 - `GET /ns/{ns}/graph`

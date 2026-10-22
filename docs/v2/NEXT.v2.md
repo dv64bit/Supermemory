@@ -4,28 +4,34 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 ## Current state (2026-10-22)
 
-- **Phase:** P1, eval baseline on the current engine. P0 (`GAP_REPORT.md`) is done.
-- **Checkpoint:** A (LLM router, cache, call log, fake-LLM upgrades, test fixes) is done. Waiting for the owner to commit it.
-- **Tests:** server 33/33 green, web 1/1.
-- **LLM:** fake only. The owner is setting up local Ollama, and real-model evals wait for their go. No paid APIs.
-- **Branch:** `main`. The owner commits from their own terminal using the message Claude proposes at each checkpoint.
+- **Phase:** P1, eval baseline on the current engine. All P1 code is done; P1 closes once the real-model E2 numbers are in.
+- **Checkpoints:**
+  - A is committed and pushed.
+  - B, C and D are done, waiting for the owner to commit and push them together.
+- **Tests:** E1 has 33 passing, 0 unexpected failures, 16 todos and 12 open targets. Web 1/1.
+  - The targets are `target()` / `test.failing`.
+  - `SHOW_TARGETS=1 bun test` shows why each one fails.
+- **Baselines so far (current engine):**
+  - Retrieval: recall@10 0.844, MRR 0.770.
+  - Latency at 100k memories: search p95 989 ms (memories) and 1,376 ms (hybrid), profile p95 673 ms. All over budget.
+  - The 0.92 near-duplicate shortcut is wrong on 5 of the 10 relation cases it decides; 3 of those are true numeric updates it throws away.
+
+  See DEVLOG and `eval/runs/`.
+- **LLM:** fake only. The owner is setting up local Ollama. No paid APIs.
+- **Branch:** `v2-dev` (tracks `origin/v2-dev`). The owner commits and pushes; Claude proposes the commands.
+- **Owner to do:** spot-check the four hand-written sets in `eval/data/` (retrieval, extraction, relation, grounding).
 
 ## Next
 
-- **B.** E1 v2 scenarios (PRD.v2 Testing) and the confirmed bugs from the gap report, as `todo` tests. Check contract responses against `ref/v5.json`, with the 4 known mismatches allowed until P4.
-- **C.**
-  - `eval/` folder, `bun run eval:*` scripts, run files in `eval/runs/` and a compare command;
-  - `eval/private/` ignored by git (the repo is public);
-  - retrieval eval with baseline numbers;
-  - latency test at 10k and 100k memories.
-- **D.** E2 labelled sets (extraction, relation, grounding) and the MemoryBench runner against ours and a plain-RAG baseline, smoke-tested with the fake LLM.
-- **Once Ollama is ready:** run E2/E3 and write `docs/v2/BASELINE.md`.
+- **When Ollama is up:** `cd server && LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=<model> bun run eval:e2`. Check the judge's accuracy on the grounding set before trusting the judge's other numbers.
+- **Then:** write `docs/v2/BASELINE.md` (all P1 numbers in one place). That ends P1.
+- **After that:** P2 (schema v2 migrations + migration runner, audit tables, secret guard).
 
 ## Standing decisions
 
-- **v5 mismatches:** profile `buckets`, `include=documents`, chunk `isLatest`/`isInference` and `list?sort=` get fixed in the phase that touches them (mostly P4).
+- **v5 mismatches (5):** profile `buckets`, `include=documents`, chunk `isLatest`/`isInference`, `list?sort=` and list returning only one array get fixed in the phase that touches them (mostly P4). Each has a `test.failing`, plus an entry in `KNOWN_V5_MISMATCHES` (`server/test/v5-schema.ts`) that you remove once it's fixed.
 - **Deleted or edited documents:** their memories are kept as history with `valid_to` set (P3 Policy).
-- **Oracle:** benchmarking against Supermemory local happens after building (`DEFERRED.md` #1).
+- **Deferred** (`DEFERRED.md`): #1 the Supermemory local oracle comparison, after building; #2 the E3 end-to-end benchmark (MemoryBench needs paid APIs).
 
 ## After P1
 
@@ -49,4 +55,4 @@ P2 schema + migrations + guard → P3 Dreamer v2 → P4 Retrieval v2 + context +
 - **Web:** `cd web && bun run dev` (localhost:5173). On first open, enter the API key in Settings.
 - **MCP:** `claude mcp add --scope user --transport http supermem http://127.0.0.1:6767/mcp --header "Authorization: Bearer dev"`
 - **Tests:** `cd server && bun run test`. This needs Postgres with pgvector and a role that can create databases. Set `TEST_DATABASE_URL` if the default `postgres://localhost/postgres` doesn't work. The first run downloads the bge embedding model.
-- **Evals (built in P1):** `bun run eval:e1`, `bun run eval:e2`, `bun run eval:e3 --slice 50`, `bun run eval:compare <runA> <runB>`.
+- **Evals:** from `server/`, run `bun run eval:e1`, `eval:e2 [--only name]`, `eval:latency`, `eval:compare`. See `eval/README.md`.

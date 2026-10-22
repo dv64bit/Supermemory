@@ -1,0 +1,62 @@
+{
+  "id": "2026-10-22T13-43-47Z-e1-suite",
+  "git": {
+    "sha": "6478535",
+    "dirty": true
+  },
+  "layer": "e1",
+  "name": "suite",
+  "startedAt": "2026-10-22T13:43:47.880Z",
+  "durationMs": 27260,
+  "config": {
+    "files": 5,
+    "llm": "fake"
+  },
+  "metrics": {
+    "pass": 33,
+    "fail": 0,
+    "todo": 16,
+    "targets_open": 12,
+    "targets_fixed": 0
+  },
+  "groups": {
+    "contract": {
+      "pass": 9,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 4,
+      "targets_fixed": 0
+    },
+    "e1-v2": {
+      "pass": 0,
+      "fail": 0,
+      "todo": 16,
+      "targets_open": 7,
+      "targets_fixed": 0
+    },
+    "engine": {
+      "pass": 15,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 1,
+      "targets_fixed": 0
+    },
+    "llm": {
+      "pass": 5,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    },
+    "mcp": {
+      "pass": 4,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    }
+  },
+  "notes": [
+    "gate passed: 0 unexpected failures"
+  ]
+}

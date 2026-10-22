@@ -1,7 +1,10 @@
 // Seam 1: the official `supermemory` v5 SDK against our server. If the SDK is happy, plugins/tools are too.
+// Every SDK response is also validated against ref/v5.json (see v5-schema.ts).
 import { beforeAll, afterAll, expect, test } from "bun:test";
 
 import { freshDb, startFakeLlm } from "./fake-llm";
+import { target } from "./targets";
+import { KNOWN_V5_MISMATCHES, specIssues, validatingFetch } from "./v5-schema";
 const llm = startFakeLlm(); // no memories extracted: this file covers documents/chunks only
 await freshDb("supermem_test_contract");
 const { migrate } = await import("../src/db");
@@ -17,7 +20,7 @@ const NS = "user_alex";
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp(KEY).fetch });
-  client = new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  client = new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
@@ -85,16 +88,18 @@ test("batch add, list, delete", async () => {
 test("namespaces list counts documents", async () => {
   const res = await fetch(`http://localhost:${server.port}/ns`, { headers: { authorization: `Bearer ${KEY}` } });
   const body = await res.json();
+  expect(specIssues("GET", "/ns", res.status, body)).toEqual([]);
   expect(body.namespaces[0]).toMatchObject({ id: NS, documentCount: 3 });
 });
 
 test("bad key is rejected, bad body is 400", async () => {
-  const bad = new Supermemory({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  const bad = new Supermemory({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
   expect(await bad.search(NS, { query: "x" }).then(() => null, (e) => e)).toBeInstanceOf(UnauthorizedError);
   const res = await fetch(`http://localhost:${server.port}/ns/${NS}/search`, {
     method: "POST", headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: JSON.stringify({ query: "" }),
   });
   expect(res.status).toBe(400);
+  expect(specIssues("POST", `/ns/${NS}/search`, 400, await res.json())).toEqual([]);
 });
 
 // Minimal valid one-page PDF with a text object, built by hand (offsets computed).
@@ -123,7 +128,9 @@ test("file upload: pdf and markdown ingest with their type; unsupported types ar
   };
   const pdf = await upload(new File([tinyPdf("Invoice total is 420 euros")], "invoice.pdf", { type: "application/pdf" }), { source: "upload" });
   expect(pdf.status).toBe(200);
-  const { id } = await pdf.json();
+  const pdfBody = await pdf.json();
+  expect(specIssues("POST", `/ns/${NS}/document/file`, 200, pdfBody)).toEqual([]);
+  const { id } = pdfBody;
   const md = await (await upload(new File(["# Recipe\nAdd two eggs."], "recipe.md"))).json();
   await drain();
 
@@ -158,4 +165,30 @@ test("legacy v3/v4 shims used by the browser extension", async () => {
   const search = await req("/v4/search", { q: "extension", containerTag: "sm_project_ext", include: { relatedMemories: true } });
   expect(search.status).toBe(200);
   expect(Array.isArray(search.body.results)).toBe(true); // fake LLM forms no memories here; shape is what matters
+});
+
+// Known v5 deviations from the P0 audit (GAP_REPORT §3), scheduled for P4. `target` (see ./targets.ts) passes while the
+// bug exists and turns red once it is fixed: then make it a plain `test` and drop its KNOWN_V5_MISMATCHES entry, if any.
+const strict = () => new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
+
+target("v5 mismatch (P4): chunk search results carry isLatest and isInference", async () => {
+  const res = await strict().search(NS, { query: "Seattle", searchMode: "chunks", threshold: 0 });
+  expect(res.results.length).toBeGreaterThan(0);
+});
+
+target("v5 mismatch (P4): profile accepts a buckets selection", async () => {
+  const res = await client.profile(NS, { buckets: ["preferences"] });
+  expect(res.profile.buckets).toHaveProperty("preferences");
+});
+
+target("v5 mismatch (P4): list honours sort=updatedAt", async () => {
+  await client.documents.update(NS, "note-1", { content: "# Travel\nAlex moved to Seattle. Edited." });
+  await drain();
+  const byUpdated = await client.list(NS, "documents", { sort: "updatedAt", order: "desc" });
+  expect(byUpdated.documents?.[0].id).toBe("note-1"); // created first, updated last
+});
+
+target("v5 mismatch (P4): list responses carry documents, chunks and memories arrays", async () => {
+  const res = await strict().list(NS, "documents", {});
+  expect(res.documents?.length).toBeGreaterThan(0);
 });

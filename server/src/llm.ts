@@ -5,7 +5,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { sql } from "./db";
 
-export type Role = "extract" | "relate" | "derive" | "forget" | "chat";
+export type Role = "extract" | "relate" | "derive" | "forget" | "chat" | "judge"; // judge: evals only
 type Schema = Record<string, unknown>;
 
 const base = () => process.env.LLM_BASE_URL ?? "http://localhost:11434/v1";

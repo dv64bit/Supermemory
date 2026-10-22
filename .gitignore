@@ -3,3 +3,5 @@ dist/
 .env
 *.log
 .DS_Store
+# Personal eval data and any run over it never leave this machine (the repo is public).
+eval/private/
