@@ -9,6 +9,12 @@ Personal, self-hosted rebuild of [supermemory.ai](https://supermemory.ai). It sp
 ## Run
 
 ```sh
+./start.sh   # starts Postgres + Ollama services, API (:6767) and UI (:5173); Ctrl-C stops the app
+```
+
+Manual setup, first time or without the script:
+
+```sh
 brew install postgresql@17 pgvector ollama
 brew services start postgresql@17 && brew services start ollama
 createdb supermem && ollama pull qwen3:8b
