@@ -1,0 +1,790 @@
+{
+  "id": "2026-10-23T10-17-18Z-e2-grounding",
+  "git": {
+    "sha": "8568292",
+    "dirty": true
+  },
+  "layer": "e2",
+  "name": "grounding",
+  "startedAt": "2026-10-23T10:17:18.407Z",
+  "durationMs": 477463,
+  "config": {
+    "judge_set": "grounding.v1",
+    "pairs": 45,
+    "extraction_set": "extraction.v1",
+    "prompt": "judge-support.v1",
+    "llm_base_url": "http://localhost:11434/v1",
+    "extract_model": "qwen3:4b-instruct",
+    "relate_model": "qwen3:4b-instruct",
+    "judge_model": "qwen3:4b-instruct"
+  },
+  "metrics": {
+    "judge_accuracy": 0.8888888888888888,
+    "judge_unsupported_recall": 0.9166666666666666,
+    "judge_unsupported_precision": 0.88,
+    "judge_errors": 0,
+    "extracted_facts": 71,
+    "unsupported_memory_rate": 0.18309859154929578,
+    "unjudged_facts": 0
+  },
+  "groups": {
+    "extracted:assistant-confirmed": {
+      "n": 5,
+      "unsupported_rate": 0
+    },
+    "extracted:assistant-facts": {
+      "n": 6,
+      "unsupported_rate": 0.16666666666666666
+    },
+    "extracted:assistant-suggestion": {
+      "n": 9,
+      "unsupported_rate": 0.3333333333333333
+    },
+    "extracted:correction": {
+      "n": 2,
+      "unsupported_rate": 0
+    },
+    "extracted:document-note": {
+      "n": 10,
+      "unsupported_rate": 0
+    },
+    "extracted:episode": {
+      "n": 5,
+      "unsupported_rate": 0
+    },
+    "extracted:hypothetical": {
+      "n": 4,
+      "unsupported_rate": 0.5
+    },
+    "extracted:multi-fact": {
+      "n": 3,
+      "unsupported_rate": 0
+    },
+    "extracted:negation": {
+      "n": 1,
+      "unsupported_rate": 0
+    },
+    "extracted:preference": {
+      "n": 3,
+      "unsupported_rate": 0.3333333333333333
+    },
+    "extracted:question": {
+      "n": 5,
+      "unsupported_rate": 0.2
+    },
+    "extracted:relative-date": {
+      "n": 4,
+      "unsupported_rate": 0.75
+    },
+    "extracted:third-party": {
+      "n": 6,
+      "unsupported_rate": 0.3333333333333333
+    },
+    "extracted:user-facts": {
+      "n": 8,
+      "unsupported_rate": 0
+    }
+  },
+  "details": {
+    "judge": [
+      {
+        "id": "g01",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g02",
+        "type": "paraphrase",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g03",
+        "type": "added-detail",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g04",
+        "type": "wrong-number",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g05",
+        "type": "exact-number",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g06",
+        "type": "wrong-speaker",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g07",
+        "type": "confirmed-suggestion",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g08",
+        "type": "hearsay-as-fact",
+        "gold": false,
+        "pred": true
+      },
+      {
+        "id": "g09",
+        "type": "attributed-hearsay",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g10",
+        "type": "negation",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g11",
+        "type": "negation-kept",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g12",
+        "type": "hypothetical",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g13",
+        "type": "question",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g14",
+        "type": "inference-not-stated",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g15",
+        "type": "resolved-date",
+        "gold": true,
+        "pred": false
+      },
+      {
+        "id": "g16",
+        "type": "wrong-date",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g17",
+        "type": "wrong-person",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g18",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g19",
+        "type": "overgeneralised",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g20",
+        "type": "episode",
+        "gold": true,
+        "pred": false
+      },
+      {
+        "id": "g21",
+        "type": "merged-facts",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g22",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g23",
+        "type": "assistant-fact",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g24",
+        "type": "correction",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g25",
+        "type": "correction",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g26",
+        "type": "document",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g27",
+        "type": "added-detail",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g28",
+        "type": "intent-vs-done",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g29",
+        "type": "intent-kept",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g30",
+        "type": "wrong-number",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g31",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g32",
+        "type": "third-party-opinion",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g33",
+        "type": "attributed-opinion",
+        "gold": true,
+        "pred": false
+      },
+      {
+        "id": "g34",
+        "type": "scope-change",
+        "gold": false,
+        "pred": true
+      },
+      {
+        "id": "g35",
+        "type": "paraphrase",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g36",
+        "type": "unit-change",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g37",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g38",
+        "type": "name-invented",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g39",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g40",
+        "type": "tense-shift",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g41",
+        "type": "tense-kept",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g42",
+        "type": "assistant-suggestion",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g43",
+        "type": "exact",
+        "gold": true,
+        "pred": true
+      },
+      {
+        "id": "g44",
+        "type": "quantity-drift",
+        "gold": false,
+        "pred": false
+      },
+      {
+        "id": "g45",
+        "type": "paraphrase",
+        "gold": true,
+        "pred": true
+      }
+    ],
+    "extracted": [
+      {
+        "unit": "x01",
+        "category": "user-facts",
+        "fact": "User is now in Pune",
+        "supported": true
+      },
+      {
+        "unit": "x01",
+        "category": "user-facts",
+        "fact": "User works as a staff ML engineer at Northwind Labs",
+        "supported": true
+      },
+      {
+        "unit": "x02",
+        "category": "assistant-suggestion",
+        "fact": "User considers using Postgres for their side project.",
+        "supported": true
+      },
+      {
+        "unit": "x02",
+        "category": "assistant-suggestion",
+        "fact": "User considers using SQLite for their side project.",
+        "supported": false
+      },
+      {
+        "unit": "x03",
+        "category": "assistant-confirmed",
+        "fact": "User chose Postgres for side project.",
+        "supported": true
+      },
+      {
+        "unit": "x03",
+        "category": "assistant-confirmed",
+        "fact": "Assistant recommended Postgres for full-text search.",
+        "supported": true
+      },
+      {
+        "unit": "x04",
+        "category": "third-party",
+        "fact": "Ravi told the user the launch deadline moved to Friday.",
+        "supported": true
+      },
+      {
+        "unit": "x04",
+        "category": "third-party",
+        "fact": "The user is unsure if Ravi's statement about the launch deadline is correct.",
+        "supported": false
+      },
+      {
+        "unit": "x05",
+        "category": "relative-date",
+        "fact": "User has statistics exam on 2026-10-06.",
+        "supported": false
+      },
+      {
+        "unit": "x07",
+        "category": "hypothetical",
+        "fact": "User will need to learn German if moving to Berlin.",
+        "supported": false
+      },
+      {
+        "unit": "x07",
+        "category": "hypothetical",
+        "fact": "Many tech jobs in Berlin are in English.",
+        "supported": true
+      },
+      {
+        "unit": "x09",
+        "category": "document-note",
+        "fact": "Anika has a school PTM on 2026-10-03 at 16:00",
+        "supported": true
+      },
+      {
+        "unit": "x09",
+        "category": "document-note",
+        "fact": "Car insurance renewal is due before 2026-10-15",
+        "supported": true
+      },
+      {
+        "unit": "x09",
+        "category": "document-note",
+        "fact": "Biscuit has a rabies booster due",
+        "supported": true
+      },
+      {
+        "unit": "x11",
+        "category": "question",
+        "fact": "The user wants to learn Rust.",
+        "supported": false
+      },
+      {
+        "unit": "x11",
+        "category": "question",
+        "fact": "The user will start with the Rust Book.",
+        "supported": true
+      },
+      {
+        "unit": "x11",
+        "category": "question",
+        "fact": "The user will do Rustlings exercises.",
+        "supported": true
+      },
+      {
+        "unit": "x12",
+        "category": "user-facts",
+        "fact": "User has penicillin allergy.",
+        "supported": true
+      },
+      {
+        "unit": "x12",
+        "category": "user-facts",
+        "fact": "User's blood group is B+.",
+        "supported": true
+      },
+      {
+        "unit": "x13",
+        "category": "assistant-suggestion",
+        "fact": "User cuts caffeine after 2pm.",
+        "supported": false
+      },
+      {
+        "unit": "x13",
+        "category": "assistant-suggestion",
+        "fact": "User has fixed bedtime of 10:30pm.",
+        "supported": false
+      },
+      {
+        "unit": "x14",
+        "category": "episode",
+        "fact": "User ran a 10k race in 58 minutes.",
+        "supported": true
+      },
+      {
+        "unit": "x14",
+        "category": "episode",
+        "fact": "User completed a 10k race without knee issues.",
+        "supported": true
+      },
+      {
+        "unit": "x15",
+        "category": "third-party",
+        "fact": "Priya wants status updates every Friday.",
+        "supported": true
+      },
+      {
+        "unit": "x15",
+        "category": "third-party",
+        "fact": "The reorg is happening in January.",
+        "supported": true
+      },
+      {
+        "unit": "x16",
+        "category": "relative-date",
+        "fact": "User is flying to Kochi on Saturday, 2026-10-16.",
+        "supported": false
+      },
+      {
+        "unit": "x17",
+        "category": "assistant-facts",
+        "fact": "The capital of Australia is Canberra.",
+        "supported": true
+      },
+      {
+        "unit": "x17",
+        "category": "assistant-facts",
+        "fact": "The user asked about the capital of Australia.",
+        "supported": true
+      },
+      {
+        "unit": "x17",
+        "category": "assistant-facts",
+        "fact": "The assistant responded that the capital of Australia is Canberra.",
+        "supported": true
+      },
+      {
+        "unit": "x18",
+        "category": "preference",
+        "fact": "User prefers Python with type hints and 4 spaces for code examples.",
+        "supported": false
+      },
+      {
+        "unit": "x19",
+        "category": "multi-fact",
+        "fact": "Mei has a dental clinic license.",
+        "supported": true
+      },
+      {
+        "unit": "x19",
+        "category": "multi-fact",
+        "fact": "The user adopted a beagle named Biscuit.",
+        "supported": true
+      },
+      {
+        "unit": "x19",
+        "category": "multi-fact",
+        "fact": "The user uses Neovim as their code editor.",
+        "supported": true
+      },
+      {
+        "unit": "x20",
+        "category": "assistant-suggestion",
+        "fact": "User plans family trip to Kyoto in April 2026.",
+        "supported": true
+      },
+      {
+        "unit": "x20",
+        "category": "assistant-suggestion",
+        "fact": "User prefers Kyoto over other destinations for family trip.",
+        "supported": true
+      },
+      {
+        "unit": "x22",
+        "category": "negation",
+        "fact": "User switched to green tea last month.",
+        "supported": true
+      },
+      {
+        "unit": "x23",
+        "category": "document-note",
+        "fact": "Priya attended the ranking sync meeting on 1 Aug 2026.",
+        "supported": true
+      },
+      {
+        "unit": "x23",
+        "category": "document-note",
+        "fact": "Daniel owns the rollout of the new ranker.",
+        "supported": true
+      },
+      {
+        "unit": "x23",
+        "category": "document-note",
+        "fact": "The new ranker will be shipped behind a flag on 15 Aug 2026.",
+        "supported": true
+      },
+      {
+        "unit": "x23",
+        "category": "document-note",
+        "fact": "Latency regression ticket PAY-4821 remains unresolved.",
+        "supported": true
+      },
+      {
+        "unit": "x25",
+        "category": "assistant-suggestion",
+        "fact": "User decided to call their memory server project supermem.",
+        "supported": true
+      },
+      {
+        "unit": "x26",
+        "category": "relative-date",
+        "fact": "User's passport expires in June 2029.",
+        "supported": false
+      },
+      {
+        "unit": "x27",
+        "category": "user-facts",
+        "fact": "User pays 42k monthly rent to Mr Deshpande.",
+        "supported": true
+      },
+      {
+        "unit": "x27",
+        "category": "user-facts",
+        "fact": "Mr Deshpande responds only via WhatsApp.",
+        "supported": true
+      },
+      {
+        "unit": "x28",
+        "category": "hypothetical",
+        "fact": "A 3050 with 4 GB GPU cannot handle 7B model fine-tuning locally.",
+        "supported": true
+      },
+      {
+        "unit": "x28",
+        "category": "hypothetical",
+        "fact": "QLoRA requires at least 24 GB GPU memory for 7B model fine-tuning.",
+        "supported": false
+      },
+      {
+        "unit": "x29",
+        "category": "episode",
+        "fact": "User had dinner at Malaka Spice with Mei tonight.",
+        "supported": true
+      },
+      {
+        "unit": "x29",
+        "category": "episode",
+        "fact": "Mei had dinner at Malaka Spice tonight.",
+        "supported": true
+      },
+      {
+        "unit": "x29",
+        "category": "episode",
+        "fact": "Dinner at Malaka Spice was great.",
+        "supported": true
+      },
+      {
+        "unit": "x30",
+        "category": "correction",
+        "fact": "User corrected anniversary date to 9 February.",
+        "supported": true
+      },
+      {
+        "unit": "x30",
+        "category": "correction",
+        "fact": "User's date night tonight is not an anniversary.",
+        "supported": true
+      },
+      {
+        "unit": "x31",
+        "category": "assistant-facts",
+        "fact": "ColBERTv2 uses residual compression to reduce token embeddings.",
+        "supported": true
+      },
+      {
+        "unit": "x31",
+        "category": "assistant-facts",
+        "fact": "ColBERTv2 matches query and document tokens with MaxSim.",
+        "supported": true
+      },
+      {
+        "unit": "x31",
+        "category": "assistant-facts",
+        "fact": "User is reading the ColBERTv2 paper this week.",
+        "supported": false
+      },
+      {
+        "unit": "x32",
+        "category": "third-party",
+        "fact": "Aisha wants to move into research within two years.",
+        "supported": true
+      },
+      {
+        "unit": "x32",
+        "category": "third-party",
+        "fact": "Aisha has I as her mentor.",
+        "supported": false
+      },
+      {
+        "unit": "x33",
+        "category": "preference",
+        "fact": "User does not want meetings scheduled on Wednesdays",
+        "supported": true
+      },
+      {
+        "unit": "x33",
+        "category": "preference",
+        "fact": "User prefers morning meetings",
+        "supported": true
+      },
+      {
+        "unit": "x34",
+        "category": "question",
+        "fact": "Ibuprofen is safe for a six-year-old at the right weight-based dose.",
+        "supported": true
+      },
+      {
+        "unit": "x34",
+        "category": "question",
+        "fact": "The user should check with a pediatrician before giving ibuprofen to a six-year-old.",
+        "supported": true
+      },
+      {
+        "unit": "x35",
+        "category": "user-facts",
+        "fact": "User volunteers on Saturdays teaching Python.",
+        "supported": true
+      },
+      {
+        "unit": "x35",
+        "category": "user-facts",
+        "fact": "User teaches Python at a government school near Baner.",
+        "supported": true
+      },
+      {
+        "unit": "x36",
+        "category": "assistant-confirmed",
+        "fact": "User ordered a cooling pad",
+        "supported": true
+      },
+      {
+        "unit": "x36",
+        "category": "assistant-confirmed",
+        "fact": "User's laptop overheats",
+        "supported": true
+      },
+      {
+        "unit": "x36",
+        "category": "assistant-confirmed",
+        "fact": "Assistant recommended cleaning vents and checking processes",
+        "supported": true
+      },
+      {
+        "unit": "x37",
+        "category": "relative-date",
+        "fact": "Anika's birthday party is two weeks from Sunday.",
+        "supported": true
+      },
+      {
+        "unit": "x38",
+        "category": "document-note",
+        "fact": "Dr. Shah advised cutting salt in health log.",
+        "supported": true
+      },
+      {
+        "unit": "x38",
+        "category": "document-note",
+        "fact": "Health log shows BP 128/84 this morning.",
+        "supported": true
+      },
+      {
+        "unit": "x38",
+        "category": "document-note",
+        "fact": "Health log has recheck appointment in 3 months.",
+        "supported": true
+      },
+      {
+        "unit": "x40",
+        "category": "assistant-suggestion",
+        "fact": "User leans towards staying at Northwind.",
+        "supported": true
+      },
+      {
+        "unit": "x40",
+        "category": "assistant-suggestion",
+        "fact": "Razorpay has a strong fraud team.",
+        "supported": true
+      }
+    ]
+  }
+}

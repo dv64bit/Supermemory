@@ -1,0 +1,781 @@
+{
+  "id": "2026-10-23T10-12-29Z-e2-relation",
+  "git": {
+    "sha": "8568292",
+    "dirty": true
+  },
+  "layer": "e2",
+  "name": "relation",
+  "startedAt": "2026-10-23T10:12:29.452Z",
+  "durationMs": 288758,
+  "config": {
+    "dataset": "relation.v1",
+    "cases": 60,
+    "prompt": "relate.v1",
+    "note": "engine has no CONFLICT/HISTORICAL ops and ignores dates; those cases can only be 'safe' (not UPDATE) or a false UPDATE",
+    "llm_base_url": "http://localhost:11434/v1",
+    "extract_model": "qwen3:4b-instruct",
+    "relate_model": "qwen3:4b-instruct",
+    "judge_model": "qwen3:4b-instruct"
+  },
+  "metrics": {
+    "n": 60,
+    "accuracy": 0.6166666666666667,
+    "false_update_rate": 0.125,
+    "accuracy_engine_classes": 0.7115384615384616,
+    "missed_update_rate": 0.3333333333333333,
+    "update_swallowed_as_duplicate": 0.3333333333333333,
+    "missed_link_rate": 0,
+    "decided_by_shortcut": 10,
+    "relate_errors": 0
+  },
+  "groups": {
+    "gold:ADD": {
+      "n": 21,
+      "recall": 0.6666666666666666,
+      "predicted_update": 0.09523809523809523
+    },
+    "gold:DUPLICATE": {
+      "n": 9,
+      "recall": 0.7777777777777778,
+      "predicted_update": 0
+    },
+    "gold:UPDATE": {
+      "n": 12,
+      "recall": 0.6666666666666666,
+      "predicted_update": 0.6666666666666666
+    },
+    "gold:EXTEND": {
+      "n": 10,
+      "recall": 0.8,
+      "predicted_update": 0
+    },
+    "gold:CONFLICT": {
+      "n": 4,
+      "recall": 0,
+      "predicted_update": 0.5
+    },
+    "gold:HISTORICAL": {
+      "n": 4,
+      "recall": 0,
+      "predicted_update": 0.5
+    },
+    "add": {
+      "n": 4,
+      "accuracy": 1,
+      "false_update_rate": 0
+    },
+    "duplicate": {
+      "n": 9,
+      "accuracy": 0.7777777777777778,
+      "false_update_rate": 0
+    },
+    "extend": {
+      "n": 9,
+      "accuracy": 0.7777777777777778,
+      "false_update_rate": 0
+    },
+    "trap-coexisting": {
+      "n": 5,
+      "accuracy": 0.4,
+      "false_update_rate": 0
+    },
+    "trap-different-attribute": {
+      "n": 4,
+      "accuracy": 0.5,
+      "false_update_rate": 0.25
+    },
+    "trap-different-subject": {
+      "n": 7,
+      "accuracy": 0.7142857142857143,
+      "false_update_rate": 0.14285714285714285
+    },
+    "trap-hearsay": {
+      "n": 4,
+      "accuracy": 0,
+      "false_update_rate": 0.5
+    },
+    "trap-older": {
+      "n": 4,
+      "accuracy": 0,
+      "false_update_rate": 0.5
+    },
+    "trap-uncertain": {
+      "n": 2,
+      "accuracy": 1,
+      "false_update_rate": 0
+    },
+    "update": {
+      "n": 9,
+      "accuracy": 0.8888888888888888,
+      "false_update_rate": 0
+    },
+    "update-numeric": {
+      "n": 3,
+      "accuracy": 0,
+      "false_update_rate": 0
+    }
+  },
+  "details": [
+    {
+      "id": "r01",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r02",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r03",
+      "category": "update-numeric",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r04",
+      "category": "update-numeric",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r05",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r06",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r07",
+      "category": "update-numeric",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r08",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r09",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r10",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r11",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r12",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r13",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r14",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r15",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r16",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r17",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r18",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r19",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r20",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r21",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r22",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r23",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r24",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r25",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r26",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r27",
+      "category": "add",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "no-neighbour",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r28",
+      "category": "add",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r29",
+      "category": "add",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r30",
+      "category": "add",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r31",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r32",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r33",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r34",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r35",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 1
+    },
+    {
+      "id": "r36",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r37",
+      "category": "trap-different-attribute",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r38",
+      "category": "trap-different-attribute",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r39",
+      "category": "trap-different-attribute",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 1
+    },
+    {
+      "id": "r40",
+      "category": "trap-different-attribute",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r41",
+      "category": "trap-coexisting",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r42",
+      "category": "trap-coexisting",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r43",
+      "category": "trap-coexisting",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r44",
+      "category": "trap-coexisting",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r45",
+      "category": "trap-coexisting",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r46",
+      "category": "trap-hearsay",
+      "gold": "CONFLICT",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 1
+    },
+    {
+      "id": "r47",
+      "category": "trap-hearsay",
+      "gold": "CONFLICT",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r48",
+      "category": "trap-hearsay",
+      "gold": "CONFLICT",
+      "goldTarget": "a",
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r49",
+      "category": "trap-hearsay",
+      "gold": "CONFLICT",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 1
+    },
+    {
+      "id": "r50",
+      "category": "trap-older",
+      "gold": "HISTORICAL",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 1
+    },
+    {
+      "id": "r51",
+      "category": "trap-older",
+      "gold": "HISTORICAL",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 1
+    },
+    {
+      "id": "r52",
+      "category": "trap-older",
+      "gold": "HISTORICAL",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "shortcut",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r53",
+      "category": "trap-older",
+      "gold": "HISTORICAL",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 0,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r54",
+      "category": "trap-uncertain",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r55",
+      "category": "trap-uncertain",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r56",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r57",
+      "category": "update",
+      "gold": "UPDATE",
+      "goldTarget": "a",
+      "pred": "UPDATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r58",
+      "category": "duplicate",
+      "gold": "DUPLICATE",
+      "goldTarget": "a",
+      "pred": "DUPLICATE",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r59",
+      "category": "extend",
+      "gold": "EXTEND",
+      "goldTarget": "a",
+      "pred": "EXTEND",
+      "predTarget": "a",
+      "path": "llm",
+      "correct": 1,
+      "falseUpdate": 0
+    },
+    {
+      "id": "r60",
+      "category": "trap-different-subject",
+      "gold": "ADD",
+      "goldTarget": null,
+      "pred": "ADD",
+      "predTarget": null,
+      "path": "no-neighbour",
+      "correct": 1,
+      "falseUpdate": 0
+    }
+  ]
+}

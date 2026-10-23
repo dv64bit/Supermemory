@@ -1,0 +1,1736 @@
+{
+  "id": "2026-10-23T09-54-00Z-e2-retrieval",
+  "git": {
+    "sha": "8568292",
+    "dirty": false
+  },
+  "layer": "e2",
+  "name": "retrieval",
+  "startedAt": "2026-10-23T09:54:00.471Z",
+  "durationMs": 28035,
+  "config": {
+    "dataset": "retrieval.v1",
+    "memories": 90,
+    "distractors": 1500,
+    "distractorSeed": 20261022,
+    "queries": 77,
+    "searchMode": "memories",
+    "limit": 10,
+    "threshold": "API default (0.3)"
+  },
+  "metrics": {
+    "n": 77,
+    "recall@1": 0.7142857142857143,
+    "recall@5": 0.8181818181818182,
+    "recall@10": 0.8441558441558441,
+    "mrr": 0.7701298701298701,
+    "recall@10_threshold0": 0.8441558441558441,
+    "queries_with_no_results": 0,
+    "search_p50_ms": 25.31098099999872,
+    "search_p95_ms": 32.954171000001224
+  },
+  "groups": {
+    "entity": {
+      "n": 12,
+      "recall@1": 0.9166666666666666,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.9583333333333334,
+      "recall@10_threshold0": 1
+    },
+    "keyword": {
+      "n": 11,
+      "recall@1": 0.9090909090909091,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.9318181818181818,
+      "recall@10_threshold0": 1
+    },
+    "multi": {
+      "n": 4,
+      "recall@1": 0.25,
+      "recall@5": 0.75,
+      "recall@10": 0.75,
+      "mrr": 0.675,
+      "recall@10_threshold0": 0.75
+    },
+    "paraphrase": {
+      "n": 28,
+      "recall@1": 0.5,
+      "recall@5": 0.6428571428571429,
+      "recall@10": 0.6785714285714286,
+      "mrr": 0.5625000000000001,
+      "recall@10_threshold0": 0.6785714285714286
+    },
+    "preference": {
+      "n": 12,
+      "recall@1": 0.75,
+      "recall@5": 0.75,
+      "recall@10": 0.8333333333333334,
+      "mrr": 0.7583333333333333,
+      "recall@10_threshold0": 0.8333333333333334
+    },
+    "temporal": {
+      "n": 10,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_threshold0": 1
+    }
+  },
+  "details": [
+    {
+      "q": "Where does the user work?",
+      "category": "paraphrase",
+      "expect": [
+        "job"
+      ],
+      "got": [
+        "wfh",
+        "job",
+        "manager",
+        "laptop",
+        "commute"
+      ],
+      "ms": 27.699788999998418,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.5,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What's my current employer and role?",
+      "category": "paraphrase",
+      "expect": [
+        "job"
+      ],
+      "got": [
+        "d1122",
+        "d1137",
+        "d548",
+        "d1235",
+        "d87"
+      ],
+      "ms": 21.19284400000106,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "Which team do I manage?",
+      "category": "paraphrase",
+      "expect": [
+        "job_team"
+      ],
+      "got": [
+        "d760",
+        "d1202",
+        "d720",
+        "d1128",
+        "d512"
+      ],
+      "ms": 24.82725500000015,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "Where did I work before my current job?",
+      "category": "temporal",
+      "expect": [
+        "prev_job"
+      ],
+      "got": [
+        "prev_job",
+        "wfh",
+        "d87",
+        "d1235",
+        "d418"
+      ],
+      "ms": 31.24201499999981,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When did I start at Northwind?",
+      "category": "temporal",
+      "expect": [
+        "job_start"
+      ],
+      "got": [
+        "job_start",
+        "prev_job",
+        "job_team",
+        "job",
+        "d844"
+      ],
+      "ms": 32.20056999999724,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Who is my boss?",
+      "category": "paraphrase",
+      "expect": [
+        "manager"
+      ],
+      "got": [
+        "manager",
+        "d16",
+        "d366",
+        "d218",
+        "d1298"
+      ],
+      "ms": 28.176390000000538,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Which city do I live in?",
+      "category": "paraphrase",
+      "expect": [
+        "city"
+      ],
+      "got": [
+        "d650",
+        "d1157",
+        "d1322",
+        "d476",
+        "d1053"
+      ],
+      "ms": 32.300600999999006,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "Where am I originally from?",
+      "category": "paraphrase",
+      "expect": [
+        "hometown"
+      ],
+      "got": [
+        "d518",
+        "hometown",
+        "d453",
+        "d1472",
+        "d711"
+      ],
+      "ms": 20.87268100000074,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.5,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How do I get to the office?",
+      "category": "paraphrase",
+      "expect": [
+        "commute"
+      ],
+      "got": [
+        "commute",
+        "meetings",
+        "d1012",
+        "d370",
+        "visa"
+      ],
+      "ms": 27.935523999996803,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Which days am I remote?",
+      "category": "paraphrase",
+      "expect": [
+        "wfh"
+      ],
+      "got": [
+        "wfh",
+        "d203",
+        "d471",
+        "d412",
+        "d936"
+      ],
+      "ms": 20.709664999998495,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What does my wife do for a living?",
+      "category": "paraphrase",
+      "expect": [
+        "partner"
+      ],
+      "got": [
+        "wfh",
+        "d52",
+        "homelab",
+        "d1272",
+        "d488"
+      ],
+      "ms": 25.241417999997793,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "What's the name of Mei's practice?",
+      "category": "entity",
+      "expect": [
+        "mei_clinic"
+      ],
+      "got": [
+        "gift_idea",
+        "mei_clinic",
+        "partner",
+        "d333",
+        "dentist"
+      ],
+      "ms": 27.509667000002082,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.5,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How old is my kid?",
+      "category": "paraphrase",
+      "expect": [
+        "kid"
+      ],
+      "got": [
+        "kid",
+        "partner",
+        "d869",
+        "d210",
+        "d579"
+      ],
+      "ms": 24.806422000001476,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Which school does Anika attend?",
+      "category": "entity",
+      "expect": [
+        "kid_school"
+      ],
+      "got": [
+        "kid_school",
+        "anika_bday",
+        "kid_allergy",
+        "kid",
+        "d502"
+      ],
+      "ms": 29.33808499999941,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Does my daughter have any food allergies?",
+      "category": "paraphrase",
+      "expect": [
+        "kid_allergy"
+      ],
+      "got": [
+        "d634",
+        "d964",
+        "d236",
+        "d1134",
+        "d1248"
+      ],
+      "ms": 24.240100999999413,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "What breed is my dog?",
+      "category": "paraphrase",
+      "expect": [
+        "dog"
+      ],
+      "got": [
+        "d930",
+        "d815",
+        "d1438",
+        "d770",
+        "d1187"
+      ],
+      "ms": 24.800790999997844,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 1,
+      "mrr": 0.16666666666666666,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Who is Biscuit's veterinarian?",
+      "category": "entity",
+      "expect": [
+        "dog_vet"
+      ],
+      "got": [
+        "dog_vet",
+        "dog",
+        "d781",
+        "d930",
+        "d738"
+      ],
+      "ms": 25.183374000000185,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Where does Ravi work?",
+      "category": "entity",
+      "expect": [
+        "ravi_job"
+      ],
+      "got": [
+        "ravi_job",
+        "ravi",
+        "ravi_bday",
+        "d1203",
+        "d598"
+      ],
+      "ms": 22.120107999999163,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When is Ravi's birthday?",
+      "category": "entity",
+      "expect": [
+        "ravi_bday"
+      ],
+      "got": [
+        "ravi_bday",
+        "ravi",
+        "d1070",
+        "d876",
+        "d485"
+      ],
+      "ms": 22.311014000002615,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How do I know Ravi?",
+      "category": "entity",
+      "expect": [
+        "ravi"
+      ],
+      "got": [
+        "ravi",
+        "ravi_bday",
+        "ravi_job",
+        "d495",
+        "d792"
+      ],
+      "ms": 21.125452000000223,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How does Daniel like to do design reviews?",
+      "category": "entity",
+      "expect": [
+        "daniel_pref"
+      ],
+      "got": [
+        "daniel_pref",
+        "daniel",
+        "d224",
+        "d550",
+        "d578"
+      ],
+      "ms": 22.65510600000198,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What are Aisha's career goals?",
+      "category": "entity",
+      "expect": [
+        "aisha_goal"
+      ],
+      "got": [
+        "aisha_goal",
+        "aisha",
+        "stats_exam",
+        "d250",
+        "d1488"
+      ],
+      "ms": 28.627990999997564,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What medication does my mother take?",
+      "category": "paraphrase",
+      "expect": [
+        "mom_health"
+      ],
+      "got": [
+        "mom_health",
+        "d186",
+        "d475",
+        "mom",
+        "d751"
+      ],
+      "ms": 32.6946629999984,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How do I take my coffee?",
+      "category": "preference",
+      "expect": [
+        "coffee"
+      ],
+      "got": [
+        "d690",
+        "d324",
+        "d60",
+        "d951",
+        "d603"
+      ],
+      "ms": 25.14788899999985,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "What do I drink in the evening?",
+      "category": "preference",
+      "expect": [
+        "tea_evening"
+      ],
+      "got": [
+        "tea_evening",
+        "d1260",
+        "d741",
+        "d682",
+        "d1457"
+      ],
+      "ms": 26.646168999999645,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Am I vegetarian?",
+      "category": "preference",
+      "expect": [
+        "diet"
+      ],
+      "got": [
+        "diet",
+        "d1056",
+        "d116",
+        "food_dislike",
+        "d972"
+      ],
+      "ms": 22.838347000000795,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What food do I hate?",
+      "category": "preference",
+      "expect": [
+        "food_dislike"
+      ],
+      "got": [
+        "food_dislike",
+        "d1134",
+        "d323",
+        "d964",
+        "d236"
+      ],
+      "ms": 26.039021000000503,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What is my favourite meal?",
+      "category": "preference",
+      "expect": [
+        "food_fav"
+      ],
+      "got": [
+        "d266",
+        "d126",
+        "d1465",
+        "d925",
+        "d1316"
+      ],
+      "ms": 32.954171000001224,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 1,
+      "mrr": 0.1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When should meetings be scheduled for me?",
+      "category": "multi",
+      "expect": [
+        "meetings",
+        "no_meeting_day"
+      ],
+      "got": [
+        "d471",
+        "d666",
+        "d412",
+        "d466",
+        "meetings"
+      ],
+      "ms": 25.140293000000383,
+      "recall@1": 0,
+      "recall@5": 0.5,
+      "recall@10": 0.5,
+      "mrr": 0.2,
+      "recall@10_t0": 0.5,
+      "empty": 0
+    },
+    {
+      "q": "Which text editor do I use?",
+      "category": "preference",
+      "expect": [
+        "editor"
+      ],
+      "got": [
+        "tabs",
+        "d320",
+        "d1375",
+        "d1236",
+        "d39"
+      ],
+      "ms": 33.717054000000644,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "Which programming languages do I prefer?",
+      "category": "preference",
+      "expect": [
+        "lang_pref"
+      ],
+      "got": [
+        "lang_pref",
+        "tabs",
+        "d681",
+        "d513",
+        "d1451"
+      ],
+      "ms": 37.402680999999575,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How should code examples be formatted for me?",
+      "category": "preference",
+      "expect": [
+        "tabs"
+      ],
+      "got": [
+        "tabs",
+        "d21",
+        "d496",
+        "d756",
+        "d940"
+      ],
+      "ms": 27.336636,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How do I like answers written?",
+      "category": "preference",
+      "expect": [
+        "answer_style"
+      ],
+      "got": [
+        "answer_style",
+        "tabs",
+        "paper",
+        "learning",
+        "daniel_pref"
+      ],
+      "ms": 30.40773700000136,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Fahrenheit or Celsius?",
+      "category": "preference",
+      "expect": [
+        "units"
+      ],
+      "got": [
+        "units",
+        "timezone",
+        "d1484",
+        "d1062",
+        "d960"
+      ],
+      "ms": 23.20937799999956,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What OS is on my work machine?",
+      "category": "paraphrase",
+      "expect": [
+        "laptop"
+      ],
+      "got": [
+        "laptop",
+        "homelab",
+        "d155",
+        "d619",
+        "d100"
+      ],
+      "ms": 29.639079000000493,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How much VRAM does my GPU have?",
+      "category": "keyword",
+      "expect": [
+        "gpu"
+      ],
+      "got": [
+        "gpu",
+        "project_deadline",
+        "game",
+        "project_mem",
+        "d1274"
+      ],
+      "ms": 28.855556000002252,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What runs on tars?",
+      "category": "keyword",
+      "expect": [
+        "homelab"
+      ],
+      "got": [
+        "homelab",
+        "d1109",
+        "d637",
+        "d310",
+        "d196"
+      ],
+      "ms": 20.88682400000107,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What side project am I working on?",
+      "category": "paraphrase",
+      "expect": [
+        "project_mem"
+      ],
+      "got": [
+        "d418",
+        "d96",
+        "lang_pref",
+        "d458",
+        "d1484"
+      ],
+      "ms": 25.7498119999982,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "When is the eval baseline due?",
+      "category": "temporal",
+      "expect": [
+        "project_deadline"
+      ],
+      "got": [
+        "project_deadline",
+        "d178",
+        "d1466",
+        "d548",
+        "d1050"
+      ],
+      "ms": 24.37156099999993,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What is PAY-4821 about?",
+      "category": "keyword",
+      "expect": [
+        "ticket"
+      ],
+      "got": [
+        "d892",
+        "d343",
+        "d1129",
+        "ticket",
+        "d729"
+      ],
+      "ms": 22.852673999997933,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.25,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What's the team's quarterly goal?",
+      "category": "paraphrase",
+      "expect": [
+        "okr"
+      ],
+      "got": [
+        "d144",
+        "d661",
+        "d612",
+        "okr",
+        "d371"
+      ],
+      "ms": 31.205681999999797,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.25,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What paper am I reading?",
+      "category": "paraphrase",
+      "expect": [
+        "paper"
+      ],
+      "got": [
+        "paper",
+        "d1198",
+        "book_now",
+        "d473",
+        "d1267"
+      ],
+      "ms": 22.70898600000146,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When is my PyCon talk?",
+      "category": "temporal",
+      "expect": [
+        "conf_talk"
+      ],
+      "got": [
+        "conf_talk",
+        "d1441",
+        "d817",
+        "d1340",
+        "d787"
+      ],
+      "ms": 25.600796000002447,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How often do I go running?",
+      "category": "paraphrase",
+      "expect": [
+        "running"
+      ],
+      "got": [
+        "running",
+        "d1450",
+        "d1229",
+        "d1430",
+        "d1351"
+      ],
+      "ms": 22.608446000002004,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What race am I training for?",
+      "category": "paraphrase",
+      "expect": [
+        "marathon"
+      ],
+      "got": [
+        "d386",
+        "d400",
+        "marathon",
+        "d1098",
+        "d631"
+      ],
+      "ms": 23.746313999999984,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.3333333333333333,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Do I have any injuries?",
+      "category": "paraphrase",
+      "expect": [
+        "knee"
+      ],
+      "got": [
+        "knee",
+        "d1173",
+        "d191",
+        "d1246",
+        "d155"
+      ],
+      "ms": 20.435291000001598,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What's my blood type?",
+      "category": "paraphrase",
+      "expect": [
+        "blood"
+      ],
+      "got": [
+        "blood",
+        "d394",
+        "d407",
+        "d1254",
+        "d65"
+      ],
+      "ms": 24.850689999999304,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Which antibiotics am I allergic to?",
+      "category": "paraphrase",
+      "expect": [
+        "allergy_user"
+      ],
+      "got": [
+        "allergy_user",
+        "d776",
+        "d232",
+        "d449",
+        "d186"
+      ],
+      "ms": 27.107284000001528,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Who is my family doctor?",
+      "category": "paraphrase",
+      "expect": [
+        "doctor"
+      ],
+      "got": [
+        "doctor",
+        "partner",
+        "insurance",
+        "d1149",
+        "d1058"
+      ],
+      "ms": 21.64453599999979,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What car do I drive?",
+      "category": "paraphrase",
+      "expect": [
+        "car"
+      ],
+      "got": [
+        "d1480",
+        "d131",
+        "d754",
+        "d1294",
+        "d919"
+      ],
+      "ms": 25.640285000001313,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "When does the car need servicing?",
+      "category": "keyword",
+      "expect": [
+        "car_service"
+      ],
+      "got": [
+        "car_service",
+        "d1483",
+        "d919",
+        "d1480",
+        "d242"
+      ],
+      "ms": 21.768449999999575,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What's my flight number to Kochi?",
+      "category": "keyword",
+      "expect": [
+        "flight"
+      ],
+      "got": [
+        "flight",
+        "d1017",
+        "d97",
+        "d413",
+        "d1464"
+      ],
+      "ms": 26.188475000002654,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "AI-302",
+      "category": "keyword",
+      "expect": [
+        "flight"
+      ],
+      "got": [
+        "flight",
+        "d769",
+        "d198",
+        "github",
+        "d753"
+      ],
+      "ms": 25.228468000001158,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Where are we going on holiday next spring?",
+      "category": "temporal",
+      "expect": [
+        "trip_japan"
+      ],
+      "got": [
+        "trip_japan",
+        "d1093",
+        "d1330",
+        "passport",
+        "d1392"
+      ],
+      "ms": 28.755011999997805,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When is the visa appointment?",
+      "category": "temporal",
+      "expect": [
+        "visa"
+      ],
+      "got": [
+        "visa",
+        "passport",
+        "oncall",
+        "project_deadline",
+        "trip_japan"
+      ],
+      "ms": 22.530366999999387,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When does my passport expire?",
+      "category": "temporal",
+      "expect": [
+        "passport"
+      ],
+      "got": [
+        "passport",
+        "anniversary",
+        "d859",
+        "units",
+        "d1151"
+      ],
+      "ms": 24.623806999999942,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How much rent do I pay?",
+      "category": "keyword",
+      "expect": [
+        "rent"
+      ],
+      "got": [
+        "rent",
+        "d85",
+        "d381",
+        "d703",
+        "d1046"
+      ],
+      "ms": 23.937956999998278,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "How should I contact my landlord?",
+      "category": "paraphrase",
+      "expect": [
+        "landlord"
+      ],
+      "got": [
+        "landlord",
+        "oncall",
+        "email_pref",
+        "d669",
+        "rent"
+      ],
+      "ms": 22.710684000001493,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What novel am I in the middle of?",
+      "category": "paraphrase",
+      "expect": [
+        "book_now"
+      ],
+      "got": [
+        "d317",
+        "d803",
+        "d1040",
+        "d44",
+        "d296"
+      ],
+      "ms": 25.937871999998606,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "What music do I put on while programming?",
+      "category": "preference",
+      "expect": [
+        "music"
+      ],
+      "got": [
+        "music",
+        "d513",
+        "lang_pref",
+        "d1451",
+        "d277"
+      ],
+      "ms": 29.967984999999317,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What's my Lichess rating?",
+      "category": "keyword",
+      "expect": [
+        "game"
+      ],
+      "got": [
+        "game",
+        "d1299",
+        "d1397",
+        "d1439",
+        "d1100"
+      ],
+      "ms": 36.7672240000029,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Which languages do I speak?",
+      "category": "paraphrase",
+      "expect": [
+        "language"
+      ],
+      "got": [
+        "d1014",
+        "d1270",
+        "d761",
+        "d291",
+        "d549"
+      ],
+      "ms": 28.2625220000009,
+      "recall@1": 0,
+      "recall@5": 0,
+      "recall@10": 0,
+      "mrr": 0,
+      "recall@10_t0": 0,
+      "empty": 0
+    },
+    {
+      "q": "Which JLPT level am I studying for?",
+      "category": "keyword",
+      "expect": [
+        "japanese_level"
+      ],
+      "got": [
+        "japanese_level",
+        "d675",
+        "d855",
+        "d910",
+        "d933"
+      ],
+      "ms": 31.67011899999852,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When is our wedding anniversary?",
+      "category": "temporal",
+      "expect": [
+        "anniversary"
+      ],
+      "got": [
+        "anniversary",
+        "d1424",
+        "d1010",
+        "d706",
+        "d1442"
+      ],
+      "ms": 25.48910099999921,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What should I get Mei for her birthday?",
+      "category": "entity",
+      "expect": [
+        "gift_idea"
+      ],
+      "got": [
+        "gift_idea",
+        "d1490",
+        "d1010",
+        "d869",
+        "d210"
+      ],
+      "ms": 30.6436649999996,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Who is Sunita?",
+      "category": "entity",
+      "expect": [
+        "cleaning"
+      ],
+      "got": [
+        "cleaning",
+        "d1127",
+        "d230",
+        "d924",
+        "d390"
+      ],
+      "ms": 28.39871200000198,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When does health insurance renew?",
+      "category": "temporal",
+      "expect": [
+        "insurance"
+      ],
+      "got": [
+        "insurance",
+        "passport",
+        "d138",
+        "d569",
+        "d384"
+      ],
+      "ms": 20.95526599999721,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What's my GitHub username?",
+      "category": "keyword",
+      "expect": [
+        "github"
+      ],
+      "got": [
+        "github",
+        "d1261",
+        "d729",
+        "d1319",
+        "d238"
+      ],
+      "ms": 27.17827000000034,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When do I want email digests?",
+      "category": "preference",
+      "expect": [
+        "email_pref"
+      ],
+      "got": [
+        "email_pref",
+        "project_deadline",
+        "answer_style",
+        "d471",
+        "meetings"
+      ],
+      "ms": 21.68994499999826,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When is Aisha's exam?",
+      "category": "entity",
+      "expect": [
+        "stats_exam"
+      ],
+      "got": [
+        "stats_exam",
+        "d1079",
+        "d1488",
+        "aisha_goal",
+        "d799"
+      ],
+      "ms": 25.28137400000196,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "When does Priya want status updates?",
+      "category": "entity",
+      "expect": [
+        "priya_pref"
+      ],
+      "got": [
+        "priya_pref",
+        "manager",
+        "d676",
+        "d1321",
+        "d118"
+      ],
+      "ms": 28.936525000000984,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What time is standup?",
+      "category": "keyword",
+      "expect": [
+        "standup"
+      ],
+      "got": [
+        "standup",
+        "tea_evening",
+        "d370",
+        "d450",
+        "d118"
+      ],
+      "ms": 25.31098099999872,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Which week am I on call?",
+      "category": "temporal",
+      "expect": [
+        "oncall"
+      ],
+      "got": [
+        "oncall",
+        "priya_pref",
+        "d530",
+        "d794",
+        "d936"
+      ],
+      "ms": 21.039364999996906,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Tell me about my daughter",
+      "category": "multi",
+      "expect": [
+        "kid",
+        "kid_school"
+      ],
+      "got": [
+        "kid",
+        "d804",
+        "d984",
+        "d623",
+        "d301"
+      ],
+      "ms": 27.878052000000025,
+      "recall@1": 0.5,
+      "recall@5": 0.5,
+      "recall@10": 0.5,
+      "mrr": 1,
+      "recall@10_t0": 0.5,
+      "empty": 0
+    },
+    {
+      "q": "What do I know about my dog Biscuit?",
+      "category": "multi",
+      "expect": [
+        "dog",
+        "dog_vet"
+      ],
+      "got": [
+        "dog",
+        "dog_vet",
+        "d1438",
+        "d815",
+        "d76"
+      ],
+      "ms": 25.931840000001102,
+      "recall@1": 0.5,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "What appointments do I have in November 2026?",
+      "category": "multi",
+      "expect": [
+        "oncall",
+        "dentist"
+      ],
+      "got": [
+        "project_deadline",
+        "oncall",
+        "dentist",
+        "visa",
+        "d908"
+      ],
+      "ms": 23.491462999998475,
+      "recall@1": 0,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 0.5,
+      "recall@10_t0": 1,
+      "empty": 0
+    },
+    {
+      "q": "Is the car loan still running?",
+      "category": "paraphrase",
+      "expect": [
+        "car_loan"
+      ],
+      "got": [
+        "car_loan",
+        "d1372",
+        "d1294",
+        "d15",
+        "d582"
+      ],
+      "ms": 22.812278000001243,
+      "recall@1": 1,
+      "recall@5": 1,
+      "recall@10": 1,
+      "mrr": 1,
+      "recall@10_t0": 1,
+      "empty": 0
+    }
+  ],
+  "misses": [
+    "What's my current employer and role? -> expected job, top5 d1122,d1137,d548,d1235,d87",
+    "Which team do I manage? -> expected job_team, top5 d760,d1202,d720,d1128,d512",
+    "Which city do I live in? -> expected city, top5 d650,d1157,d1322,d476,d1053",
+    "What does my wife do for a living? -> expected partner, top5 wfh,d52,homelab,d1272,d488",
+    "Does my daughter have any food allergies? -> expected kid_allergy, top5 d634,d964,d236,d1134,d1248",
+    "How do I take my coffee? -> expected coffee, top5 d690,d324,d60,d951,d603",
+    "When should meetings be scheduled for me? -> expected meetings,no_meeting_day, top5 d471,d666,d412,d466,meetings",
+    "Which text editor do I use? -> expected editor, top5 tabs,d320,d1375,d1236,d39",
+    "What side project am I working on? -> expected project_mem, top5 d418,d96,lang_pref,d458,d1484",
+    "What car do I drive? -> expected car, top5 d1480,d131,d754,d1294,d919",
+    "What novel am I in the middle of? -> expected book_now, top5 d317,d803,d1040,d44,d296",
+    "Which languages do I speak? -> expected language, top5 d1014,d1270,d761,d291,d549",
+    "Tell me about my daughter -> expected kid,kid_school, top5 kid,d804,d984,d623,d301"
+  ],
+  "notes": [
+    "13 queries missed at least one expected memory in the top 10:",
+    "What's my current employer and role? -> expected job, top5 d1122,d1137,d548,d1235,d87",
+    "Which team do I manage? -> expected job_team, top5 d760,d1202,d720,d1128,d512",
+    "Which city do I live in? -> expected city, top5 d650,d1157,d1322,d476,d1053",
+    "What does my wife do for a living? -> expected partner, top5 wfh,d52,homelab,d1272,d488",
+    "Does my daughter have any food allergies? -> expected kid_allergy, top5 d634,d964,d236,d1134,d1248",
+    "How do I take my coffee? -> expected coffee, top5 d690,d324,d60,d951,d603",
+    "When should meetings be scheduled for me? -> expected meetings,no_meeting_day, top5 d471,d666,d412,d466,meetings",
+    "Which text editor do I use? -> expected editor, top5 tabs,d320,d1375,d1236,d39",
+    "What side project am I working on? -> expected project_mem, top5 d418,d96,lang_pref,d458,d1484",
+    "What car do I drive? -> expected car, top5 d1480,d131,d754,d1294,d919",
+    "What novel am I in the middle of? -> expected book_now, top5 d317,d803,d1040,d44,d296",
+    "Which languages do I speak? -> expected language, top5 d1014,d1270,d761,d291,d549",
+    "Tell me about my daughter -> expected kid,kid_school, top5 kid,d804,d984,d623,d301"
+  ]
+}

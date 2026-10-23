@@ -2,30 +2,25 @@
 
 This file is overwritten as work moves. History lives in `DEVLOG.md`; things skipped on purpose live in `DEFERRED.md`. Supersedes `NEXT.md`.
 
-## Current state (2026-10-22)
+## Current state (2026-10-23)
 
-- **Phase:** P1, eval baseline on the current engine. All P1 code is done; P1 closes once the real-model E2 numbers are in.
-- **Checkpoints:**
-  - A is committed and pushed.
-  - B, C and D are done, waiting for the owner to commit and push them together.
-- **Tests:** E1 has 33 passing, 0 unexpected failures, 16 todos and 12 open targets. Web 1/1.
-  - The targets are `target()` / `test.failing`.
-  - `SHOW_TARGETS=1 bun test` shows why each one fails.
-- **Baselines so far (current engine):**
-  - Retrieval: recall@10 0.844, MRR 0.770.
-  - Latency at 100k memories: search p95 989 ms (memories) and 1,376 ms (hybrid), profile p95 673 ms. All over budget.
-  - The 0.92 near-duplicate shortcut is wrong on 5 of the 10 relation cases it decides; 3 of those are true numeric updates it throws away.
-
-  See DEVLOG and `eval/runs/`.
-- **LLM:** fake only. The owner is setting up local Ollama. No paid APIs.
-- **Branch:** `v2-dev` (tracks `origin/v2-dev`). The owner commits and pushes; Claude proposes the commands.
-- **Owner to do:** spot-check the four hand-written sets in `eval/data/` (retrieval, extraction, relation, grounding).
+- **Phase:** P1 is **done**. All baseline numbers are in `docs/v2/BASELINE.md`. Next is P2.
+- **Commits:** the P1 close (real-model E2 runs, BASELINE.md, these docs) is waiting for the owner to commit and push.
+- **LLM:** local Ollama with `qwen3:4b-instruct`, CPU only, the same model for every role. No paid APIs.
+- **Eval/test database:** local role `supermem`; the URLs are in `server/.env` (git-ignored).
+- **Headline baseline:**
+  - Retrieval: recall@10 0.844.
+  - Extraction: F1 0.672, with a forbidden-fact rate of 0.667.
+  - Relation: accuracy 0.617.
+  - Grounding: unsupported-memory rate 0.183; judge accuracy 0.889.
+  - Latency at 100k: over budget everywhere.
+- **Test sets:** the four sets in `eval/data/` were spot-checked by the owner (2026-10-23). The baseline numbers are final.
 
 ## Next
 
-- **When Ollama is up:** `cd server && LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=<model> bun run eval:e2`. Check the judge's accuracy on the grounding set before trusting the judge's other numbers.
-- **Then:** write `docs/v2/BASELINE.md` (all P1 numbers in one place). That ends P1.
-- **After that:** P2 (schema v2 migrations + migration runner, audit tables, secret guard).
+- **P2:** schema v2 migrations and migration runner, audit tables, secret guard (PLAN.v2 §8).
+- **Re-running E2:** `cd server && LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=qwen3:4b-instruct bun run eval:e2`. On CPU this takes about 30 minutes.
+- **Optional:** a bigger judge (`LLM_MODEL_JUDGE=qwen3:8b`) if the machine can run it. The 4B judge passes some hearsay.
 
 ## Standing decisions
 

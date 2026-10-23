@@ -20,7 +20,7 @@ Run everything from `server/` (the eval scripts live there and import server mod
 
 ## Notes
 
-- **Test sets:** `retrieval`, `extraction` (40 units), `relation` (60 cases) and `grounding` (45 pairs) were written by hand (Claude, P1) and are not yet spot-checked by the owner. Retrieval distractors come from a fixed seed, so a run is deterministic apart from timings.
+- **Test sets:** `retrieval`, `extraction` (40 units), `relation` (60 cases) and `grounding` (45 pairs) were written by hand (Claude, P1) and spot-checked by the owner (2026-10-23). Retrieval distractors come from a fixed seed, so a run is deterministic apart from timings.
 - **The judge:** the `judge` role is an LLM (`LLM_MODEL_JUDGE`, default `LLM_MODEL`). If it is the same model as the extractor, it may be lenient towards its own output. The grounding eval's `judge_accuracy` on labelled pairs says how far to trust its other verdicts. With the LLM cache on, re-running unchanged evals costs nothing.
 - **Latency vectors:** the latency corpus uses random vectors generated in SQL. Today every search scans every row, so cost depends on row count, not vector content. Revisit if retrieval starts using the HNSW index.
 - **Machine noise:** timings depend on the machine and on what else is running. Compare latency runs from the same machine only, and don't run evals in parallel with each other.

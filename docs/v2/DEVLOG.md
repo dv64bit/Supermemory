@@ -328,3 +328,39 @@ All code for P1 is in place. What remains is real-model E2 numbers and `docs/v2/
 - **Fix:** the fake key is now assembled at runtime from pieces, so no key-shaped string is in the source. The test is unchanged: the target still fails for the intended reason, because the key reaches the LLM.
 - The commit was amended before pushing; no secret, real or fake, reached GitHub. The "allow secret" bypass link was not used.
 - **Rule from here:** test fixtures that need secrets build them at runtime. `ref/llms-full.txt` contains AWS's documented example key `AKIAIOSFODNN7EXAMPLE`; it is upstream documentation, already on GitHub and accepted.
+
+---
+
+## 2026-10-23: P1 closed, real-model E2 baseline and BASELINE.md
+
+**Setup**
+
+- The owner set up local Ollama with `qwen3:4b-instruct` (Q4_K_M). It runs on **CPU only** with a 4,096-token context, which is enough for every eval input.
+- Ollama's structured JSON output works with the router: 0 failed calls, 0 repair retries.
+- **Eval database:** Postgres had no login this session. The owner created a local role `supermem` (password `supermem`, superuser, local only). `server/.env` (git-ignored) now sets `EVAL_DATABASE_URL` and `TEST_DATABASE_URL` to it.
+
+**Results** (all in `docs/v2/BASELINE.md`; same model for extract, relate and judge)
+
+- **Judge check first:** accuracy 0.889 on the 45 labelled grounding pairs (unsupported recall 0.917, precision 0.880). Errors: 2 lenient (g08 hearsay, g34 scope change) and 3 strict (g15, g20, g33). Good enough to read the other numbers to within a few points.
+- **Extraction:**
+  - F1 0.672 (precision 0.606, recall 0.754);
+  - forbidden-fact rate 0.667: assistant suggestions, assistant-stated facts, hypotheticals and questions get stored as user facts;
+  - empty-unit accuracy 0.429;
+  - 6 unresolved relative dates.
+- **Relation:** accuracy 0.617, false-UPDATE rate 0.125, missed updates 0.333.
+  - The shortcut cases are identical to P1-D's (it doesn't depend on the model).
+  - Outside the shortcut, the relate LLM gets 8 of 9 updates right, but makes a false UPDATE on 2 of 4 hearsay and 2 of 4 older-event traps.
+- **Grounding:** 13 of 71 extracted facts (0.183) are unsupported by their source. Relative dates are worst (3 of 4), then hypotheticals (2 of 4).
+- **Retrieval:** rerun, unchanged from P1-C.
+
+**Decisions**
+
+None new. Inputs for P3 (shortcut, speaker attribution, grounding, dates) and P4 (retrieval misses, latency) are listed in BASELINE.md. The test sets still need the owner's spot-check.
+
+---
+
+## 2026-10-23: test sets spot-checked
+
+- The owner spot-checked the four hand-written sets in `eval/data/` (retrieval, extraction, relation, grounding) and found no problems. No changes were made.
+- The P1 baseline numbers in `BASELINE.md` are now final rather than provisional. BASELINE.md, NEXT.v2 and `eval/README.md` were updated to say so.
+- BASELINE.md also gained a plain-language summary at the end, at the owner's request.
