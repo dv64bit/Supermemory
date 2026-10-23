@@ -3,8 +3,7 @@
   "type": "module",
   "private": true,
   "devDependencies": {
-    "@types/bun": "^1.4.3",
-    "supermemory": "5.0.2"
+    "@types/bun": "^1.4.3"
   },
   "peerDependencies": {
     "typescript": "^5"

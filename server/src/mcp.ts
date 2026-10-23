@@ -128,9 +128,9 @@ function buildServer(call: (method: string, path: string, body?: unknown) => Pro
     annotations: ro,
   }, async () => text(`Personal supermem server (single user). Active space: ${await activeSpace()}.`));
 
-  server.registerResource("profile", "supermemory://profile", { mimeType: "application/json", description: "Profile of the active space" },
+  server.registerResource("profile", "supermem://profile", { mimeType: "application/json", description: "Profile of the active space" },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await call("POST", `/ns/${await activeSpace()}/profile`, {})) }] }));
-  server.registerResource("spaces", "supermemory://spaces", { mimeType: "application/json", description: "All spaces" },
+  server.registerResource("spaces", "supermem://spaces", { mimeType: "application/json", description: "All spaces" },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await call("GET", `/ns?limit=100`)) }] }));
 
   server.registerPrompt("context", { description: "Load the user's profile from the active space as conversation context." }, async () => {

@@ -1,4 +1,4 @@
-// Seam 1: the official `supermemory` v5 SDK against our server. If the SDK is happy, plugins/tools are too.
+// Seam 1: the HTTP API contract, exercised through a small external-style client.
 import { beforeAll, afterAll, expect, test } from "bun:test";
 
 import { freshDb, startFakeLlm } from "./fake-llm";
@@ -7,17 +7,17 @@ await freshDb("supermem_test_contract");
 const { migrate } = await import("../src/db");
 const { createApp } = await import("../src/app");
 const { drain } = await import("../src/worker");
-const { Supermemory, UnauthorizedError, NotFoundError } = await import("supermemory");
+const { MemClient, UnauthorizedError, NotFoundError } = await import("./client");
 
 const KEY = "sm_test_key";
 let server: ReturnType<typeof Bun.serve>;
-let client: InstanceType<typeof Supermemory>;
+let client: InstanceType<typeof MemClient>;
 const NS = "user_alex";
 
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp(KEY).fetch });
-  client = new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  client = new MemClient({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
@@ -27,7 +27,7 @@ test("add -> ingest -> search round-trips through the SDK", async () => {
     id: "note-1",
     metadata: { source: "note", tags: ["personal"], priority: 3 },
   });
-  expect(added).toEqual({ id: "note-1", status: "queued" });
+  expect(added as unknown).toEqual({ id: "note-1", status: "queued" });
   await client.add(NS, { content: "Quarterly OKRs: ship the payments dashboard and cut fraud losses.", id: "note-2", metadata: { source: "work", priority: 1 } });
   await drain();
 
@@ -89,7 +89,7 @@ test("namespaces list counts documents", async () => {
 });
 
 test("bad key is rejected, bad body is 400", async () => {
-  const bad = new Supermemory({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  const bad = new MemClient({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
   expect(await bad.search(NS, { query: "x" }).then(() => null, (e) => e)).toBeInstanceOf(UnauthorizedError);
   const res = await fetch(`http://localhost:${server.port}/ns/${NS}/search`, {
     method: "POST", headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: JSON.stringify({ query: "" }),

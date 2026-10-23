@@ -16,7 +16,6 @@
       },
       "devDependencies": {
         "@types/bun": "^1.4.3",
-        "supermemory": "5.0.2",
       },
       "peerDependencies": {
         "typescript": "^5",
@@ -389,8 +388,6 @@
     "statuses": ["statuses@2.0.2", "", {}, "sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw=="],
 
     "string_decoder": ["string_decoder@1.1.1", "", { "dependencies": { "safe-buffer": "~5.1.0" } }, "sha512-n/ShnvDi6FHbbVfviro+WojiFzv+s8MPMHBczVePfUpDJLwoLT0ht1l4YwBCbi8pJAveEEdnkHyPyTP/mzRfwg=="],
-
-    "supermemory": ["supermemory@5.0.2", "", { "bin": { "supermemory": "bin/cli.mjs" } }, "sha512-iXiI5HEW4tT5RgHTfUvEsZvif+P4AFgP/QjqMAiSo3XUEWtNdwIvfhBsiyZqZUAclqaCrnl+DgjScaIsd22DQg=="],
 
     "toidentifier": ["toidentifier@1.0.1", "", {}, "sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA=="],
 

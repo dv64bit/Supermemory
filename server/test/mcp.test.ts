@@ -62,8 +62,8 @@ test("select space, add, search, profile, forget round-trip", async () => {
 
 test("resources and the context prompt", async () => {
   const { resources } = await client.listResources();
-  expect(resources.map((r) => r.uri).sort()).toEqual(["supermemory://profile", "supermemory://spaces"]);
-  const spaces = await client.readResource({ uri: "supermemory://spaces" });
+  expect(resources.map((r) => r.uri).sort()).toEqual(["supermem://profile", "supermem://spaces"]);
+  const spaces = await client.readResource({ uri: "supermem://spaces" });
   expect(JSON.parse((spaces.contents[0] as any).text).namespaces[0].id).toBe("personal");
   const prompt = await client.getPrompt({ name: "context" });
   expect((prompt.messages[0].content as any).text).toContain('space "personal"');
