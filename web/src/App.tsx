@@ -76,7 +76,7 @@ function Shell({ theme, setTheme }: { theme: Theme; setTheme: (t: Theme) => void
             <span className="brand-mark">
               <Icon.memory />
             </span>
-            supermemory
+            supermem
           </div>
 
           <Button icon={<Icon.plus />} onClick={ctx.openComposer} iconRight={<kbd>⌘K</kbd>}>

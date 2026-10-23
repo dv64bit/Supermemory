@@ -41,7 +41,7 @@ function Welcome() {
 					<div className="flex items-center gap-2">
 						<img alt="" className="size-8 rounded-[4px]" src="./new_logo.png" />
 						<span className="text-lg font-semibold leading-none text-white">
-							supermemory
+							supermem
 						</span>
 					</div>
 				</header>
@@ -50,7 +50,7 @@ function Welcome() {
 					<div className="mx-auto max-w-3xl">
 						<h1 className="text-4xl font-semibold leading-[1.05] tracking-normal text-white sm:text-6xl">
 							Your browser now has{" "}
-							<span className="text-[#369BFD]">supermemory.</span>
+							<span className="text-[#369BFD]">supermem.</span>
 						</h1>
 						<p className="mt-5 text-base text-[#C7D7F2]">
 							Click the extension icon in your toolbar and enter your
@@ -74,17 +74,6 @@ function Welcome() {
 								type="button"
 							>
 								Open supermem
-							</button>
-							<button
-								className="h-12 rounded-xl border border-[#369BFD]/25 bg-[#080B0F]/80 px-6 text-sm font-semibold text-[#C7D7F2] transition hover:border-[#369BFD]/50 hover:bg-[#0D121A] focus:outline-none focus:ring-2 focus:ring-[#369BFD]/30"
-								onClick={() => {
-									chrome.tabs.create({
-										url: "https://github.com/supermemoryai/supermemory",
-									})
-								}}
-								type="button"
-							>
-								Upstream project
 							</button>
 						</div>
 					</div>

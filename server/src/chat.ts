@@ -1,5 +1,5 @@
 // Chat with memory: profile + relevant memories go into the system prompt, the reply streams back as SSE,
-// and the conversation is saved as a document so it becomes memory too (what upstream's withSupermemory does).
+// and the conversation is saved as a document so it becomes memory too.
 import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";

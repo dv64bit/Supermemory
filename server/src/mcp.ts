@@ -1,4 +1,4 @@
-// MCP endpoint with upstream supermemory's tool names, so prompts/instructions written for it carry over.
+// MCP endpoint: memory tools for any MCP client (Claude, Cursor, ...).
 // Stateless: a fresh server + transport per request. Tools call our own v5 routes in-process (no logic duplicated).
 import type { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";

@@ -268,7 +268,7 @@ function getGrokMemoryDialog(): HTMLElement | null {
 const GROK_MEMORY_UI_TEXT = [
 	"Memory from your chats",
 	"This summary is regenerated periodically from your conversations.",
-	"Save to supermemory",
+	"Save to supermem",
 	"Close",
 	"Delete memory",
 	"Edit",
@@ -327,8 +327,8 @@ function createSupermemoryButton(memoryDialog: HTMLElement) {
 
 	supermemoryButton.innerHTML = `
 		<div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;">
-			<img src="${iconUrl}" alt="supermemory" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px;" />
-			<span style="white-space: nowrap;">Save to supermemory</span>
+			<img src="${iconUrl}" alt="supermem" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px;" />
+			<span style="white-space: nowrap;">Save to supermem</span>
 		</div>
 	`
 
@@ -439,7 +439,7 @@ async function saveGrokMemoriesToSupermemory(memoryDialog: HTMLElement) {
 			DOMUtils.showToast("error")
 		}
 	} catch (error) {
-		console.error("Error saving Grok memories to supermemory:", error)
+		console.error("Error saving Grok memories to supermem:", error)
 		DOMUtils.showToast("error")
 	}
 }

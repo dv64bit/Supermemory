@@ -30,7 +30,7 @@ let geminiRouteObserver: MutationObserver | null = null
 let geminiUrlCheckInterval: NodeJS.Timeout | null = null
 let geminiObserverThrottle: NodeJS.Timeout | null = null
 const GEMINI_DEBUG = false
-const GEMINI_LOG_PREFIX = "[supermemory:gemini]"
+const GEMINI_LOG_PREFIX = "[supermem:gemini]"
 
 type GeminiInput = HTMLElement | HTMLTextAreaElement
 

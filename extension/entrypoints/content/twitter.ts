@@ -256,7 +256,7 @@ async function showOnboardingToast() {
 	const iconUrl = browser.runtime.getURL("/new_logo.png")
 	const icon = document.createElement("img")
 	icon.src = iconUrl
-	icon.alt = "Supermemory"
+	icon.alt = "supermem"
 	icon.style.cssText =
 		"width: 24px; height: 24px; border-radius: 4px; flex-shrink: 0; margin-top: 2px;"
 
@@ -365,7 +365,7 @@ async function showOnboardingToast() {
 		learnMoreButton.style.backgroundColor = "transparent"
 	})
 	learnMoreButton.addEventListener("click", () => {
-		window.open("https://docs.supermemory.ai/connectors/twitter", "_blank")
+		window.open(DEFAULT_WEB_URL, "_blank")
 	})
 
 	buttonsContainer.appendChild(importButton)
@@ -515,7 +515,7 @@ function showOrUpdateImportProgressToast(message: string, isComplete = false) {
 		const iconUrl = browser.runtime.getURL("/new_logo.png")
 		const icon = document.createElement("img")
 		icon.src = iconUrl
-		icon.alt = "Supermemory"
+		icon.alt = "supermem"
 		icon.id = "sm-import-progress-icon"
 		icon.style.cssText =
 			"width: 20px; height: 20px; border-radius: 4px; flex-shrink: 0; animation: smPulse 1.5s ease-in-out infinite;"

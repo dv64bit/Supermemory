@@ -4,7 +4,7 @@ Branch: `main`.
 
 ## Done
 - `server/src/legacy.ts`: v3/v4 shims used by the extension (tested in `test/contract.test.ts`).
-- `extension/`: fork of the upstream extension with a connect form (server URL + API key), no analytics, localhost-only host permissions. See `extension/README.md` to build and load it.
+- `extension/`: the browser extension, with a connect form (server URL + API key), no analytics, localhost-only host permissions. See `extension/README.md` to build and load it.
 - `start.sh`: one command to run everything.
 
 ## Not verified yet

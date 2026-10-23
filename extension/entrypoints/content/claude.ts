@@ -30,7 +30,7 @@ let claudeRouteObserver: MutationObserver | null = null
 let claudeUrlCheckInterval: NodeJS.Timeout | null = null
 let claudeObserverThrottle: NodeJS.Timeout | null = null
 const CLAUDE_DEBUG = false
-const CLAUDE_LOG_PREFIX = "[supermemory:claude]"
+const CLAUDE_LOG_PREFIX = "[supermem:claude]"
 
 export function initializeClaude() {
 	debugClaude("initializeClaude called", {
@@ -90,7 +90,7 @@ function setupClaudeRouteChangeDetection() {
 	const checkForRouteChange = () => {
 		if (window.location.href !== currentUrl) {
 			currentUrl = window.location.href
-			debugClaude("route changed, re-adding supermemory icon", currentUrl)
+			debugClaude("route changed, re-adding supermem icon", currentUrl)
 			setTimeout(() => {
 				addSupermemoryButtonToClaudeMemoryDialog()
 				addSupermemoryIconToClaudeInput()
@@ -555,7 +555,7 @@ function getClaudeMemoryText(dialog: HTMLElement): string {
 				(line) =>
 					line &&
 					line !== "Tell Claude what to remember or forget..." &&
-					line !== "Save to supermemory",
+					line !== "Save to supermem",
 			)
 			.join("\n")
 			.trim()
@@ -571,7 +571,7 @@ function getClaudeMemoryText(dialog: HTMLElement): string {
 			return (
 				text.length > 80 &&
 				!text.includes("Manage edits") &&
-				!text.includes("Save to supermemory") &&
+				!text.includes("Save to supermem") &&
 				!text.includes("Tell Claude what to remember or forget")
 			)
 		})
@@ -597,8 +597,8 @@ function addSupermemoryButtonToClaudeMemoryDialog() {
 
 	supermemoryButton.innerHTML = `
         <div style="display: inline-flex; align-items: center; justify-content: center; gap: 8px; white-space: nowrap;">
-          <img src="${iconUrl}" alt="supermemory" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px;" />
-          <span style="white-space: nowrap;">Save to supermemory</span>
+          <img src="${iconUrl}" alt="supermem" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px;" />
+          <span style="white-space: nowrap;">Save to supermem</span>
         </div>
       `
 
@@ -689,7 +689,7 @@ async function saveClaudeMemoriesToSupermemory(memoryDialog: HTMLElement) {
 			DOMUtils.showToast("error")
 		}
 	} catch (error) {
-		console.error("Error saving Claude memories to supermemory:", error)
+		console.error("Error saving Claude memories to supermem:", error)
 		DOMUtils.showToast("error")
 	}
 }

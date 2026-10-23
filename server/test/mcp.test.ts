@@ -27,7 +27,7 @@ beforeAll(async () => {
 });
 afterAll(async () => (await client.close(), server.stop(true), llm.stop(true)));
 
-test("lists upstream-compatible tools", async () => {
+test("lists the memory tools", async () => {
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
     "add_memory", "forget_memory", "get_document", "get_profile", "list_documents",

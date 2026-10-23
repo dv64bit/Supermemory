@@ -636,7 +636,7 @@ function App() {
 							style={{ boxShadow: "inset 0px 1px 3.75px 0px #000" }}
 						>
 							<img
-								alt="supermemory"
+								alt="supermem"
 								src="./new_logo.png"
 								className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[29px] h-[29px]"
 							/>
@@ -646,7 +646,7 @@ function App() {
 								Your
 							</span>
 							<span className="text-[15px] font-semibold leading-none text-white">
-								supermemory
+								supermem
 							</span>
 						</div>
 					</div>
@@ -700,7 +700,7 @@ function App() {
 						style={{ boxShadow: "inset 0px 1px 3.75px 0px #000" }}
 					>
 						<img
-							alt="supermemory"
+							alt="supermem"
 							src="./new_logo.png"
 							className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[29px] h-[29px]"
 						/>
@@ -716,7 +716,7 @@ function App() {
 							})()}
 						</span>
 						<span className="text-[15px] font-semibold leading-none text-white">
-							supermemory
+							supermem
 						</span>
 					</div>
 				</div>
@@ -952,7 +952,7 @@ function App() {
 											fill="none"
 											xmlns="http://www.w3.org/2000/svg"
 										>
-											<title>Add to Supermemory</title>
+											<title>Add to supermem</title>
 											<g clip-path="url(#clip0_2_8851)">
 												<path
 													d="M19.4295 6.3108H12.1691V0H9.82324V6.84734C9.82324 7.57459 10.1103 8.27304 10.6206 8.78766L16.549 14.7664L18.2077 13.0936L13.8291 8.6779H19.4309V6.31219L19.4295 6.3108Z"
@@ -970,7 +970,7 @@ function App() {
 											</defs>
 										</svg>
 
-										{saving ? "Saving..." : "Add to supermemory"}
+										{saving ? "Saving..." : "Add to supermem"}
 									</button>
 									{saveError && (
 										<p className="mt-2 text-xs leading-snug text-red-300">
@@ -1134,7 +1134,7 @@ function App() {
 															</svg>
 															{manualImportSaving
 																? "Saving..."
-																: "Save to supermemory"}
+																: "Save to supermem"}
 														</>
 													)}
 													{manualImportSaved && (
@@ -1161,7 +1161,7 @@ function App() {
 										<ImportCard
 											icon={<ClaudeLogo className="w-4 h-4 shrink-0" />}
 											title="Import Claude Memories"
-											description="Open 'view and manage' > save your memories to supermemory"
+											description="Open 'view and manage' > save your memories to supermem"
 											onClick={() => {
 												chrome.tabs.create({
 													url: "https://claude.ai/settings/capabilities",
@@ -1171,7 +1171,7 @@ function App() {
 										<ImportCard
 											icon={<OpenAILogo className="w-3 h-3.5 shrink-0" />}
 											title="Import ChatGPT Memories"
-											description="Open 'manage' > save your memories to supermemory"
+											description="Open 'manage' > save your memories to supermem"
 											onClick={() => {
 												chrome.tabs.create({
 													url: "https://chatgpt.com/#settings/Personalization",
@@ -1181,7 +1181,7 @@ function App() {
 										<ImportCard
 											icon={<GrokLogo className="w-4 h-4 shrink-0" />}
 											title="Import Grok Memories"
-											description="Open 'Memory from your chats' > save your memories to supermemory"
+											description="Open 'Memory from your chats' > save your memories to supermem"
 											onClick={() => {
 												chrome.tabs.create({
 													url: "https://grok.com/?_s=data&sm_grok_import=memories",

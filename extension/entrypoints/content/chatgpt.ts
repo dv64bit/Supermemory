@@ -30,7 +30,7 @@ let chatGPTRouteObserver: MutationObserver | null = null
 let chatGPTUrlCheckInterval: NodeJS.Timeout | null = null
 let chatGPTObserverThrottle: NodeJS.Timeout | null = null
 const CHATGPT_DEBUG = false
-const CHATGPT_LOG_PREFIX = "[supermemory:chatgpt]"
+const CHATGPT_LOG_PREFIX = "[supermem:chatgpt]"
 
 export function initializeChatGPT() {
 	debugChatGPT("initializeChatGPT called", {
@@ -90,7 +90,7 @@ function setupChatGPTRouteChangeDetection() {
 	const checkForRouteChange = () => {
 		if (window.location.href !== currentUrl) {
 			currentUrl = window.location.href
-			debugChatGPT("route changed, re-adding supermemory elements", currentUrl)
+			debugChatGPT("route changed, re-adding supermem elements", currentUrl)
 			setTimeout(() => {
 				addSupermemoryButtonToMemoriesDialog()
 				addSaveChatGPTElementBeforeComposerBtn()
@@ -290,8 +290,8 @@ function addSupermemoryButtonToMemoriesDialog() {
 
 	supermemoryButton.innerHTML = `
         <div class="flex items-center justify-center gap-2">
-          <img src="${iconUrl}" alt="supermemory" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px;" />
-          Save to supermemory
+          <img src="${iconUrl}" alt="supermem" style="width: 16px; height: 16px; flex-shrink: 0; border-radius: 2px;" />
+          Save to supermem
         </div>
       `
 
@@ -363,7 +363,7 @@ async function saveMemoriesToSupermemory() {
 			DOMUtils.showToast("error")
 		}
 	} catch (error) {
-		console.error("Error saving memories to supermemory:", error)
+		console.error("Error saving memories to supermem:", error)
 		DOMUtils.showToast("error")
 	}
 }

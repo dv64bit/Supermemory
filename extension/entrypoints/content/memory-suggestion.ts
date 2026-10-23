@@ -131,7 +131,7 @@ export function showLoadingSuggestion(
 	const suggestion = createSuggestionContainer(platform, input, anchor)
 	suggestion.dataset.supermemorySuggestionState = "loading"
 	suggestion.style.gap = "4px"
-	suggestion.setAttribute("aria-label", "supermemory searching memories")
+	suggestion.setAttribute("aria-label", "supermem searching memories")
 
 	for (let index = 0; index < 3; index += 1) {
 		const dot = document.createElement("span")
