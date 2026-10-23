@@ -44,7 +44,7 @@ export interface MemoryData {
 }
 
 /**
- * Supermemory API payload for storing memories
+ * supermem API payload for storing memories
  */
 export interface MemoryPayload {
 	containerTags?: string[]

@@ -995,7 +995,7 @@ function App() {
 												</h3>
 												<p className="m-0 mt-1 text-xs leading-tight text-[#737373]">
 													Copy the prompt, paste the response here, then add it
-													to supermemory.
+													to supermem.
 												</p>
 											</div>
 											<button
@@ -1315,7 +1315,7 @@ function App() {
 
 								<ul className="list-none p-0 m-0 text-left">
 									<li className="py-1.5 text-sm text-neutral-400 relative pl-5 before:content-['-'] before:absolute before:left-0 before:text-neutral-500 before:font-bold">
-										Save any page to your supermemory
+										Save any page to your supermem
 									</li>
 									<li className="py-1.5 text-sm text-neutral-400 relative pl-5 before:content-['-'] before:absolute before:left-0 before:text-neutral-500 before:font-bold">
 										Import all your Twitter / X Bookmarks

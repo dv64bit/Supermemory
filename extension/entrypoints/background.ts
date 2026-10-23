@@ -121,7 +121,7 @@ export default defineBackground(() => {
 	}
 
 	/**
-	 * Save memory to supermemory API
+	 * Save memory to supermem API
 	 */
 	const saveMemoryToSupermemory = async (
 		data: MemoryData,

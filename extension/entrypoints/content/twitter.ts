@@ -272,7 +272,7 @@ async function showOnboardingToast() {
 	description.style.cssText =
 		"font-size: 13px; color: #6b7280; line-height: 1.4;"
 	description.textContent =
-		"You can import all your Twitter bookmarks to Supermemory with one click."
+		"You can import all your Twitter bookmarks to supermem with one click."
 
 	textContainer.appendChild(title)
 	textContainer.appendChild(description)

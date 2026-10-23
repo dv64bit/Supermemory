@@ -267,7 +267,7 @@ export function createChatGPTInputBarElement(onClick: () => void): HTMLElement {
 export function createConnectedIndicator(onClick: () => void): HTMLElement {
 	const iconButton = document.createElement("button")
 	iconButton.type = "button"
-	iconButton.setAttribute("aria-label", "supermemory connected")
+	iconButton.setAttribute("aria-label", "supermem connected")
 	iconButton.dataset.supermemoryConnectedIndicator = "true"
 	iconButton.style.cssText = `
     display: inline-flex;
@@ -293,7 +293,7 @@ export function createConnectedIndicator(onClick: () => void): HTMLElement {
   `
 
 	const tooltip = document.createElement("div")
-	tooltip.textContent = "supermemory connected"
+	tooltip.textContent = "supermem connected"
 	tooltip.style.cssText = `
 		position: absolute;
 		bottom: calc(100% + 8px);
@@ -373,7 +373,7 @@ export function createT3InputBarElement(onClick: () => void): HTMLElement {
 	const iconFileName = "/new_logo.png"
 	const iconUrl = browser.runtime.getURL(iconFileName)
 	iconButton.innerHTML = `
-    <img src="${iconUrl}" width="20" height="20" alt="Get Related Memories from supermemory" style="border-radius: 4px;" />
+    <img src="${iconUrl}" width="20" height="20" alt="Get Related Memories from supermem" style="border-radius: 4px;" />
   `
 
 	iconButton.addEventListener("mouseenter", () => {
@@ -447,8 +447,8 @@ export function createProjectSelectionModal(
 	header.innerHTML = `
 	<div style="display: flex; flex-direction: column; gap: 8px;">
 	    <h3 style="margin: 0; font-size: 16px; font-weight: 600; color: #ffffff; display: flex; align-items: center; gap: 8px;">
-			<img src="${iconUrl}" width="20" height="20" alt="Supermemory" style="border-radius: 4px;" />
-			Import to Supermemory
+			<img src="${iconUrl}" width="20" height="20" alt="supermem" style="border-radius: 4px;" />
+			Import to supermem
 		</h3>
 		<p style="margin: 0; font-size: 14px; font-weight: 400; color: #ffffff; opacity: 0.7;">
 			The project you want to import your bookmarks to.

@@ -1,5 +1,5 @@
 /**
- * API service for supermemory browser extension
+ * API service for supermem browser extension
  */
 import { bearerToken, defaultProject, serverUrl, userData } from "./storage"
 import { buildSearchMemoriesBody } from "./search-request"
@@ -128,7 +128,7 @@ export async function getUserData(): Promise<{
 }
 
 /**
- * Save memory to Supermemory API
+ * Save memory to supermem API
  */
 export async function saveMemory(payload: MemoryPayload): Promise<unknown> {
 	try {
@@ -144,7 +144,7 @@ export async function saveMemory(payload: MemoryPayload): Promise<unknown> {
 }
 
 /**
- * Search memories using Supermemory API
+ * Search memories using supermem API
  */
 export async function searchMemories(
 	query: string,
@@ -163,7 +163,7 @@ export async function searchMemories(
 }
 
 /**
- * Save tweet to Supermemory API (specific for Twitter imports)
+ * Save tweet to supermem API (specific for Twitter imports)
  */
 export async function saveAllTweets(
 	documents: MemoryPayload[],

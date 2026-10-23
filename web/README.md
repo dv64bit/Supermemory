@@ -1,4 +1,4 @@
-# Supermemory web
+# supermem web
 
 The web UI for the self-hosted memory engine in `../server`. It is built with Vite, React 19, TypeScript and Bun, and styled with plain CSS variables. There is no Tailwind and no UI kit.
 

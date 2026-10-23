@@ -1,7 +1,7 @@
 type SuggestionInput = HTMLElement | HTMLTextAreaElement
 
 const SUGGESTION_ATTR = "data-supermemory-memory-suggestion"
-const SUPERMEMORY_PREFIX = "Supermemories of user (only for the reference):"
+const SUPERMEMORY_PREFIX = "supermem memories of user (only for the reference):"
 const SUPERMEMORY_BLUE = "#1A88FF"
 
 export function buildSupermemoryText(memories: unknown): string {

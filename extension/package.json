@@ -1,6 +1,6 @@
 {
 	"name": "supermem-browser-extension",
-	"description": "Browser extension for the supermemory app",
+	"description": "Browser extension for the supermem server",
 	"private": true,
 	"version": "0.0.1",
 	"type": "module",

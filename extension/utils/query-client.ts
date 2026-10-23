@@ -1,5 +1,5 @@
 /**
- * React Query configuration for supermemory browser extension
+ * React Query configuration for supermem browser extension
  */
 import { QueryClient } from "@tanstack/react-query"
 

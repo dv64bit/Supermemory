@@ -99,7 +99,7 @@ function Welcome() {
 				</section>
 
 				<footer className="border-t border-white/10 py-5 text-xs text-[#737373]">
-					supermemory stores your extension session locally in Chrome.
+					supermem stores your extension session locally in Chrome.
 				</footer>
 			</main>
 		</div>

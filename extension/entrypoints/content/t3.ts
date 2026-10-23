@@ -537,7 +537,7 @@ function setupT3PromptCapture() {
 		if (
 			storedMemories &&
 			textareaElement &&
-			!promptContent.includes("Supermemories of user")
+			!promptContent.includes("supermem memories of user")
 		) {
 			if (textareaElement.tagName === "TEXTAREA") {
 				;(textareaElement as HTMLTextAreaElement).value =

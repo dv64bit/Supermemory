@@ -1,5 +1,5 @@
 /**
- * React Query hooks for supermemory API
+ * React Query hooks for supermem API
  */
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import {

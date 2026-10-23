@@ -1,8 +1,7 @@
 ---
-title: Personal Supermemory — self-hosted memory engine with full product parity
+title: "supermem: a personal, self-hosted memory engine"
 labels: [ready-for-agent]
 created: 2026-10-22
-source: REA capture of supermemory.ai + public OpenAPI v4/v5 (ref/) + MIT repo supermemoryai/supermemory
 related: PLAN.md
 ---
 
@@ -10,28 +9,23 @@ related: PLAN.md
 
 I use several AI tools every day: Claude, ChatGPT, Cursor, Claude Code and others. None of them remembers anything about me across sessions or across tools. Everything I save (notes, links, PDFs, Notion pages, Drive files, emails) sits in separate silos, and my assistants can't see any of it.
 
-Supermemory.ai solves this as a hosted product. It turns everything I feed it into atomic facts that evolve over time, keeps a standing profile of me, and serves that memory to any model through an API, MCP and plugins. I don't want to depend on it for three reasons:
-
-- It is a paid, metered SaaS with plan-gated features. Gmail needs Max; GitHub, S3, the crawler and advanced PDF extraction need Scale.
-- My personal data would live on someone else's infrastructure.
-- Its consumer app and browser extension were pulled from the public repo in September 2026. app.supermemory.ai now only redirects to the developer console.
-
-I want the same capabilities, owned and run by me, for my own use.
+I want one memory I own: it turns everything I feed it into atomic facts that evolve over time, keeps a standing profile of me, and serves that memory to any model through an HTTP API, MCP and a browser extension. My personal data should stay on my own machine, with no metering and no plan gates.
 
 ## Solution
 
-A self-hosted personal memory server that implements Supermemory's public v5 API contract, so the official SDKs, the MIT-licensed MCP server, the AI SDK tools, the browser extension and the coding plugins all work against it by changing one base URL. On top of it:
+supermem is a self-hosted personal memory server with a web UI, an MCP endpoint and a browser extension.
 
-- **Memory engine:** ingests text, URLs, files and connector data, then:
+- **Memory engine:** ingests text, URLs, files and (later) connector data, then:
   - extracts atomic, typed memories;
   - links them through `updates` / `extends` / `derives` relations, with versioning and soft-forgetting;
-  - keeps a static/dynamic user profile;
+  - computes a static/dynamic user profile;
   - serves hybrid search over memories and chunks.
-- **Forked consumer web app:** notes, links, uploads, spaces, chat over memories, graph view, timeline and inferred-memory review.
-- **Forked browser extension:** save and auto-recall inside ChatGPT, Claude, Gemini and Grok, plus X bookmarks import.
-- **Connectors:** Notion, Google Drive, Gmail, OneDrive, GitHub, Granola, S3 and a web crawler, each keeping my sources in sync automatically.
+- **Web UI:** notes, links, uploads, spaces, chat over memories, graph view, documents, memories with restore, and inferred-memory review.
+- **MCP endpoint:** mounted at `/mcp` on the same server, so Claude Desktop, Claude Code, Cursor and others can search and write memory.
+- **Browser extension:** save a page and auto-recall inside ChatGPT, Claude, Gemini and Grok, talking to the server through v3/v4 compatibility routes.
+- **Connectors (planned):** Notion, Google Drive and Gmail, each keeping my sources in sync.
 
-Everything runs on one machine with Postgres and a local or OpenAI-compatible LLM. There is no billing, no orgs and no plan gates: every feature is on.
+Everything runs on one machine with Postgres and a local or OpenAI-compatible LLM. There is no billing, no orgs and no plan gates.
 
 ## User Stories
 
@@ -50,7 +44,7 @@ Everything runs on one machine with Postgres and a local or OpenAI-compatible LL
 12. As the owner, I want to set the date the content is from, so that temporal reasoning uses when it happened, not when I saved it.
 13. As the owner, I want to attach metadata to documents, so that I can filter by it later.
 14. As the owner, I want to give a namespace supporting context (up to 1,500 characters), so that extraction knows whose memory it is building and what matters.
-15. As the owner, I want to choose RAG-only ingest (`superrag`) for some documents, so that reference material is searchable without generating memories.
+15. As the owner, I want to choose RAG-only ingest (`taskType: superrag`) for some documents, so that reference material is searchable without generating memories.
 16. As the owner, I want to request `instant` dreaming, so that the next call sees new facts immediately.
 17. As the owner, I want to see each document's processing status (queued, extracting, chunking, embedding, indexing, done, failed), so that I know when it is ready.
 18. As the owner, I want failed ingestion to show an error reason, so that I can fix or retry it.
@@ -133,15 +127,15 @@ Everything runs on one machine with Postgres and a local or OpenAI-compatible LL
 83. As the owner, I want connector tokens encrypted at rest, so that a database leak doesn't expose my accounts.
 
 ### Integrations (AI tools)
-84. As the owner, I want the official `supermemory` TypeScript and Python SDKs to work against my server by setting a base URL, so that I can reuse the whole ecosystem.
+84. As the owner, I want a plain HTTP API with a bearer key, so that any script, SDK or tool can call my server.
 85. As the owner, I want an MCP server exposing search_memory, add_memory, forget_memory, get_profile, list_documents, get_document, list_memories, list_spaces and who_am_i, so that Claude Desktop, Claude Code, Cursor and others can use my memory.
 86. As the owner, I want MCP resources for my profile and spaces, and a context prompt, so that clients can preload who I am.
 87. As the owner, I want the MCP server to remember my active space, so that I don't pass a namespace on every call.
-88. As the owner, I want `withSupermemory` AI SDK middleware to work against my server, so that any app I build injects my profile and saves conversations.
-89. As the owner, I want the Claude Code and Cursor plugins to capture and recall against my server, so that my coding assistants remember my projects.
-90. As the owner, I want legacy v3/v4 endpoints shimmed where my clients still call them, so that older plugins and the extension work.
+88. As the owner, I want my own apps to be able to fetch my profile and search results over HTTP, so that they can inject them into prompts and save conversations.
+89. As the owner, I want Claude Code and Cursor to use the MCP endpoint to capture and recall, so that my coding assistants remember my projects.
+90. As the owner, I want v3/v4 compatibility routes for the endpoints the browser extension calls, so that the extension works without changes to the main API.
 
-### Consumer web app
+### Web UI
 91. As the owner, I want a rich-text note editor with slash commands, so that writing memories is pleasant.
 92. As the owner, I want a grid of my documents with type-specific previews (tweet, YouTube, Notion, Google Docs, website, PDF, image), so that I can browse my knowledge.
 93. As the owner, I want a command palette over my documents, so that I can jump to anything fast.
@@ -151,7 +145,7 @@ Everything runs on one machine with Postgres and a local or OpenAI-compatible LL
 97. As the owner, I want to chat with my memories, with related-memory cards, model selection and attachments, so that I can ask questions over everything I know.
 98. As the owner, I want the review modal for inferred memories in the UI, so that curation is easy.
 99. As the owner, I want a settings screen for API keys, connectors, profile buckets and the ingest filter prompt, so that I can configure everything without curl.
-100. As the owner, I want the app installable as a PWA, so that it works like a native app on my phone.
+100. As the owner, I want the UI installable as a PWA, so that it works like a native app on my phone.
 
 ### Browser extension
 101. As the owner, I want a save button on any web page, so that capture is one click.
@@ -165,7 +159,7 @@ Everything runs on one machine with Postgres and a local or OpenAI-compatible LL
 107. As the owner, I want to mount a namespace as a read-only filesystem (or a grep tool over it), so that agents can grep my memory.
 
 ### Operations
-108. As the owner, I want the whole system to start with one docker-compose command, so that setup is trivial.
+108. As the owner, I want the whole system to start with one command (`./start.sh`), so that setup is trivial.
 109. As the owner, I want to choose any OpenAI-compatible LLM (Ollama, OpenRouter, Anthropic-compatible), so that I control cost and privacy.
 110. As the owner, I want local embeddings by default, so that ingest works offline and free.
 111. As the owner, I want the server bound to localhost (or Tailscale) and protected by an API key, so that my memory isn't exposed.
@@ -174,91 +168,68 @@ Everything runs on one machine with Postgres and a local or OpenAI-compatible LL
 
 ## Implementation Decisions
 
-- **API contract is the spine.** The server implements Supermemory's public v5 API (`/ns/{namespace}/…` routes for document, document/batch, document/file, search, profile, profile/buckets, memories, memories/semantic, list/{documents|chunks|memories}, namespaces and connectors). Request and response shapes follow the downloaded v5 OpenAPI spec exactly, with types generated from it. Auth is `Authorization: Bearer <api key>`.
-- **Legacy v3/v4 routes** are thin adapters over the v5 handlers, added only when a real client needs them: v3 documents and search, v4 search, profile and memories, v3 projects and health.
+- **HTTP API is the spine.** Routes live under `/ns/{namespace}/…`: document, document/batch, document/file, search, profile, profile/buckets, memories, memories/semantic, list/{documents|chunks|memories}, graph, plus `/ns` for namespaces. Auth is `Authorization: Bearer <api key>`.
+- **Compatibility routes** for the browser extension live in `server/src/legacy.ts`. They are thin adapters over the main handlers: v3 documents and search, v4 search, profile and memories, v3 projects and health.
 - **Modules (deep, small interfaces):**
-  - **Extractor:** `(input: text | url | file) → { text, type, title, previewMeta }`. Hides per-type logic: readability for HTML, PDF parsing and OCR, office parsing, vision LLM for images, whisper for audio and video, oEmbed and transcripts for tweets and YouTube.
-  - **Chunker:** `(text, type) → chunks[]`. Structure-aware: markdown headings, whole code fences, sentence boundaries with about 200 characters of overlap, optional contextual prefix.
-  - **Embedder:** `(texts) → vectors`. Local bge-base-en-v1.5 at 768 dimensions by default; the provider is swappable. The dimension is locked once data exists.
-  - **Dreamer (memory formation):** `(document, namespace) → memory writes and edges`. Extracts typed atomic facts, retrieves the nearest latest memories, classifies each candidate as new, duplicate, updates or extends, then runs a derive pass. Applies versioning, strength and expiry.
-  - **Retriever:** `(namespace, searchRequest) → results`. Hybrid vector + full-text with reciprocal-rank fusion, the filter-tree compiler, threshold and latest/forgotten gating, optional rerank, aggregate, rewrite and related-edge expansion.
-  - **Profiler:** `(namespace) → { static, dynamic, buckets }`. LLM summary of the latest non-forgotten memories, cached per namespace and rebuilt on change.
-  - **Forgetter:** expiry sweep, episode decay, ID-based soft-forget, semantic forget with dry run and a cap.
-  - **Connector framework:** one provider interface `{ authorize, listChanges(cursor), fetch(item), verifyWebhook }`, with eight implementations. A scheduler runs the first full import, webhooks and a four-hour reconcile, honours the document limit, and stores tokens encrypted with AES-GCM.
-  - **LLM client:** a single OpenAI-compatible client with JSON-schema structured outputs. Every LLM-dependent module goes through it, which is the seam for the fake LLM in tests.
-- **Storage:** Postgres with pgvector (HNSW, cosine) and tsvector. Tables: namespaces, documents (unique on namespace and custom ID, content hash for no-op re-ingest), chunks, memories (kind, is_latest, is_inference, is_forgotten, forget_after, strength, version chain, temporal context, metadata), memory_edges (updates, extends, derives), profiles cache, profile_buckets, connectors and sync history. No separate graph database; graph traversal uses SQL.
-- **Jobs:** pg-boss on the same Postgres. Ingest is serialised per namespace (a singleton key per namespace). Dreaming runs as a follow-on job unless `instant` is requested. An hourly cron handles expiry, decay and profile rebuilds; a four-hour cron reconciles connectors.
-- **Decay:** episodes lose strength daily (start at a factor of 0.98/day) and are soft-forgotten below a threshold. Preferences gain strength on duplicate detection. Facts persist until updated. Upstream publishes no formula; the constants are tunable through config.
-- **MCP:** fork the MIT `apps/mcp` server. Replace Cloudflare OAuth with API-key auth against this server. Keep the tool names and schemas, the resources (profile, spaces), the context prompt and active-space persistence.
-- **Web app:** fork the MIT consumer app at upstream commit `4d8a4ebf`. Remove billing (Autumn), orgs and the "company brain" features. Repoint it to this API. Chat uses the AI SDK with `withSupermemory` middleware against this server.
-- **Browser extension:** fork the MIT WXT extension at the same commit, with the API base made configurable.
-- **Coding plugins:** use them unmodified through base-URL env vars where supported; fork only if the URL is hard-coded.
+  - **Extractor:** `(input: text | url | file) → { text, type, title, url }`. Readability for HTML; parsers for PDF, DOCX and other text formats. Images (vision) and audio/video (whisper) are planned behind the same function.
+  - **Chunker:** `(text) → chunks[]`. Structure-aware: Markdown headings, whole code fences, sentence boundaries with about 200 characters of overlap.
+  - **Embedder:** `(texts) → vectors`. Local bge-base-en-v1.5 at 768 dimensions, overridable by env. The dimension is fixed in the schema, so changing models means re-embedding.
+  - **Dreamer (memory formation):** `(document, namespace) → memory writes and edges`. Three LLM passes: extract typed atomic facts, relate each candidate to its nearest latest memories (new, duplicate, updates or extends), then derive inferences. Applies versioning, strength and expiry.
+  - **Retriever:** `(namespace, searchRequest) → results`. Hybrid vector + full-text with reciprocal-rank fusion, the filter-tree compiler, threshold, latest/forgotten gating and related-edge expansion. Rerank, aggregate and query rewriting are not built.
+  - **Profiler:** `(namespace) → { static, dynamic, buckets }`. Computed from live memories on read, with no LLM: static is durable facts and preferences, dynamic is recent episodes and changes. The built-in `preferences` bucket is classified by kind; custom buckets are assigned during dreaming.
+  - **Forgetter:** expiry sweep, episode decay, ID-based soft-forget, semantic forget with dry run and a cap, restore.
+  - **LLM client:** a single OpenAI-compatible client with JSON outputs. Every LLM-dependent module goes through it, which is the seam for the fake LLM in tests.
+  - **Connector framework (planned):** one provider interface `{ authorize, listChanges(cursor), fetch(item) }`, a first full import, a periodic reconcile, a per-connector document limit, and tokens encrypted at rest.
+- **Storage:** Postgres with pgvector (HNSW, cosine) and tsvector. Tables: namespaces, documents (unique on namespace and public ID, content hash for no-op re-ingest), chunks, memories (kind, is_latest, is_inference, is_forgotten, forget_after, strength, version chain, metadata), memory_edges (updates, extends, derives) and profile_buckets. No separate graph database; graph traversal uses SQL.
+- **Jobs:** no job queue library. A Postgres-backed worker loop runs in the API process and claims the oldest queued document with `FOR UPDATE SKIP LOCKED`. Ingest is serialized per namespace, because order decides which fact came first. Dreaming runs after indexing. An in-loop hourly sweep handles expiry and episode decay.
+- **Decay:** episodes lose strength at 0.98 per day and are soft-forgotten below 0.25. Effective strength is computed on read from the last-reinforced time rather than stored, so restarts cannot over-decay. A duplicate bumps strength and resets the clock. Facts persist until updated. The constants are tunable.
+- **MCP:** Streamable HTTP mounted at `/mcp` in the same server, using the same API key. Tools: `search_memory`, `add_memory`, `forget_memory`, `get_profile`, `list_documents`, `get_document`, `list_memories`, `list_spaces`, `select_space` and `who_am_i`.
+- **Web UI:** React 19 with Vite. Pages: chat (SSE), graph, documents, memories, review, search, profile and settings.
+- **Browser extension:** a WXT Chrome extension with a connect form for the server URL and API key. No analytics, and host permissions are limited to localhost.
 - **Single user:** one static API key from env. No orgs, seats, roles, billing, rate limiting or telemetry.
-- **Runtime:** Bun + TypeScript + Hono. One API process and one worker process. docker-compose with Postgres. The server binds to 127.0.0.1 by default.
+- **Runtime:** Bun + TypeScript + Hono, one process. `start.sh` runs Postgres and Ollama services, the API and the UI. The server binds to 127.0.0.1 by default.
 
 ## Testing Decisions
 
 - **A good test** exercises externally observable behaviour through a public seam: HTTP responses, MCP tool results, rows visible through list endpoints. It never asserts on internal function calls, prompt text or intermediate tables. Tests should survive a rewrite of the internals.
-- **Seam 1, API contract (highest):** the official `supermemory` npm SDK runs against a live server with a real Postgres. It covers add, batch, file upload, get, patch, delete, search (all modes, filters, threshold, include options), profile and buckets, memories get, forget and semantic forget, list endpoints and namespaces. This proves compatibility with the ecosystem: if the SDK passes, the tools and plugins should pass too. Response bodies are also validated against the generated v5 schemas.
-- **Seam 2, engine scenarios:** run through the same API, with a fake OpenAI-compatible LLM server that returns scripted structured outputs keyed on the input. Scenarios:
-  - Google→Stripe update chain: `updates`, `extends` and `derives` produced; old fact not latest; inference flagged.
-  - Duplicate preference strengthens.
-  - Temporary fact expires after its date.
-  - Episode decays to forgotten.
-  - Unchanged re-ingest under the same custom ID is a no-op.
-  - Ordering within a namespace is respected.
-  - Review approve and decline.
-  - Semantic forget dry run, then for real, with the cap.
-  - Forgotten memories hidden by default and returned with include-forgotten.
-  - Profile reflects the latest state after an update.
-  
-  A separate, non-gating eval job runs the same scenarios plus a personal 50-sample set against a real model to track extraction quality.
-- **Seam 3, MCP:** an MCP SDK client connects to the forked server (backed by the live API) and calls every tool. It checks results, the active-space persistence across calls, resources and the context prompt.
-- **Seam 4, connectors:** a fixture HTTP server per provider fakes the Notion, Drive, Gmail, OneDrive, GitHub, Granola and S3 APIs, OAuth token exchange and webhook delivery. Tests cover:
-  - first import;
-  - webhook-driven updates propagating to search;
-  - reconcile catching a missed change;
-  - document limit enforced;
-  - 409 on a concurrent sync;
-  - disconnect with and without deletion;
-  - tokens unreadable in raw database rows.
-  
-  The web crawler is tested against a local static site with robots.txt.
-- **Not tested directly:** the forked web app and extension get a small Playwright smoke test each (capture → appears in search), not unit tests.
-- **Prior art:** none yet; this is a greenfield repo. Upstream's MIT `packages/tools` and `apps/mcp` tests serve as references for MCP and AI SDK behaviour, and MemoryBench (upstream, open) is the reference for the eval harness.
+- **Seam 1, API contract:** a generated test client runs against a real Postgres. It covers add, batch, file upload, get, patch, delete, search (modes, filters, threshold, include options), profile and buckets, memories get, forget and semantic forget, list endpoints, namespaces and the v3/v4 compatibility routes.
+- **Seam 2, engine scenarios:** run through the same API, with a fake OpenAI-compatible LLM that returns scripted outputs keyed on the input. Scenarios:
+  - an update chain produces `updates`, `extends` and `derives`; the old fact is not latest; the inference is flagged;
+  - a duplicate preference strengthens;
+  - a temporary fact expires after its date;
+  - an episode decays to forgotten;
+  - an unchanged re-ingest under the same custom ID is a no-op;
+  - ordering within a namespace is respected;
+  - review approve and decline;
+  - semantic forget dry run, then for real, with the cap;
+  - forgotten memories are hidden by default and returned with include-forgotten;
+  - the profile reflects the latest state after an update.
+- **Seam 3, MCP:** an MCP SDK client connects to `/mcp` and calls every tool. It checks results, active-space persistence across calls, and error handling.
+- **Planned:** a fixture HTTP server per connector provider (OAuth exchange, first import, incremental update, document limit). A small real-model eval set, run separately and not gating, tracks extraction quality.
+- **Not tested directly:** the web UI (build and typecheck only) and the browser extension (build and typecheck, plus the server routes it calls). Real-browser verification of the extension is still to do.
 
 ## Out of Scope
 
-- Billing, credits, metering, plans and plan gates (Autumn).
-- Multi-user: orgs, seats, roles, per-tag access, SSO, 2FA, team versus personal memory separation.
-- Compliance work (SOC 2, HIPAA, GDPR tooling), air-gapped enterprise packaging.
-- Rate limiting, custom metering, SLAs, status page, analytics and telemetry.
-- The marketing site, docs site, blog and changelog.
-- The "company brain" pivot features: Slack, skills, proactivity, automations.
-- Matching upstream's proprietary extraction models one-to-one. Quality is pursued through prompts and model choice and measured with the eval set, not cloned.
-- The Memory Router / "infinite chat" proxy (it appears deprecated upstream; `withSupermemory` covers the use case).
+- Billing, credits, metering, plans and plan gates.
+- Multi-user: orgs, seats, roles, SSO, 2FA.
+- Compliance work (SOC 2, HIPAA, GDPR tooling).
+- Rate limiting, SLAs, status page, analytics and telemetry.
+- A marketing site, docs site, blog and changelog.
+- Team and workplace features such as Slack integration or automations.
 - A hosted or public deployment. Localhost or Tailscale only.
 
 ## Further Notes
 
-- **Evidence base:**
-  - REA captures of supermemory.ai /, /product and /pricing, and of app.supermemory.ai (which shows a "We moved" redirect to console.supermemory.ai).
-  - The live OpenAPI v4 and v5 specs and the docs `llms-full.txt`, saved in `ref/`.
-  - The MIT repo `supermemoryai/supermemory`, including history at `4d8a4ebf` (the last version with the consumer app and extension) and `5b35e3ea` (the old open backend: Postgres, pgvector 768d, HNSW, tsvector).
-- **Not verified:**
-  - The current console.supermemory.ai UI (it needs a login). Rerun the REA capture with a session cookie if an account exists, to diff it against the forked app.
-  - Whether the Chrome extension is still published.
-  - The exact decay algorithm.
-- **Reference oracle:** upstream's free "Supermemory local" binary (`npx supermemory local`) speaks the same API. Run it side by side to compare engine outputs on identical inputs while tuning the Dreamer.
-- **Biggest risk:** extraction and relation quality is the product. The fake-LLM scenarios guarantee the mechanics; only the real-model eval set guarantees usefulness.
+- **Not verified:** the extension in a real browser (loading, popup connect form, save-page, auto-recall in ChatGPT and Claude), and the decay constants on real data.
+- **Biggest risk:** extraction and relation quality is the product. The fake-LLM scenarios guarantee the mechanics; only a real-model eval set guarantees usefulness.
 - **Delivery order:**
-  1. Ingest and chunk search.
-  2. The Dreamer, with memories and hybrid search.
-  3. Profiles and forgetting.
-  4. MCP (a usable product from this point).
-  5. The web app.
-  6. Rich file types.
-  7. Connectors.
-  8. The extension.
-  9. The plugins.
-  10. The extras.
+  1. Ingest and chunk search. (done)
+  2. The Dreamer, with memories and hybrid search. (done)
+  3. Profiles and forgetting. (done)
+  4. MCP. (done)
+  5. The web UI. (done)
+  6. Rich file types. (done for PDF, DOCX and text formats; images and audio are not started)
+  7. The extension. (built; real-browser verification pending)
+  8. Connectors: Notion, Drive, Gmail, each needing its own OAuth app.
+  9. Images (vision model) and audio (whisper).
+  10. The extras: Apple Shortcut, Raycast, filesystem view.
