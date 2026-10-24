@@ -22,8 +22,9 @@ export async function forgetSemantic(ns: string, query: string, dryRun: boolean)
   );
   const picked = [...new Set(forget)].filter((j) => cands[j]).slice(0, MAX_FORGET).map((j) => cands[j]);
   if (!dryRun && picked.length) {
-    await sql`update memories set is_forgotten = true, forget_reason = ${"semantic: " + query}, updated_at = now()
-      where pk in ${sql(picked.map((p) => p.pk))}`;
+    await sql`with f as (update memories set is_forgotten = true, forget_reason = ${"semantic: " + query}, updated_at = now()
+        where pk in ${sql(picked.map((p) => p.pk))} returning pk)
+      insert into memory_events (memory_pk, action, actor, reason) select pk, 'forget', 'api', ${"semantic: " + query} from f`;
   }
   return { count: picked.length, errors: [], matches: picked.map((p) => ({ id: p.id, memory: p.content })) };
 }
@@ -35,9 +36,11 @@ const DECAY_PER_DAY = 0.98;
 const FORGET_BELOW = 0.25;
 
 export async function sweep() {
-  await sql`update memories set is_forgotten = true, forget_reason = 'expired', updated_at = now()
-    where not is_forgotten and forget_after is not null and forget_after <= now()`;
-  await sql`update memories set is_forgotten = true, forget_reason = 'decayed', updated_at = now()
-    where kind = 'episode' and not is_forgotten
-      and strength * power(${DECAY_PER_DAY}::float8, extract(epoch from now() - updated_at) / 86400) < ${FORGET_BELOW}`;
+  await sql`with f as (update memories set is_forgotten = true, forget_reason = 'expired', updated_at = now()
+        where not is_forgotten and forget_after is not null and forget_after <= now() returning pk)
+    insert into memory_events (memory_pk, action, actor, reason) select pk, 'expire', 'sweeper', 'expired' from f`;
+  await sql`with f as (update memories set is_forgotten = true, forget_reason = 'decayed', updated_at = now()
+        where kind = 'episode' and not is_forgotten
+          and strength * power(${DECAY_PER_DAY}::float8, extract(epoch from now() - updated_at) / 86400) < ${FORGET_BELOW} returning pk)
+    insert into memory_events (memory_pk, action, actor, reason) select pk, 'decay', 'sweeper', 'decayed' from f`;
 }

@@ -136,7 +136,7 @@ target("a chat conversation is extracted once, not re-extracted in full on every
 
 test.todo("hallucinated candidate (quote not found in, or not supported by, the source) is rejected and logged");
 
-target("secrets are redacted before any LLM sees the text", async () => {
+test("secrets are redacted before any LLM sees the text", async () => {
   await add("e1_secret", `My OpenAI key is ${SECRET} and I like green tea.`);
   const sent = llm.requests.filter((r) => JSON.stringify(r.body.messages).includes(SECRET));
   expect(sent).toHaveLength(0);

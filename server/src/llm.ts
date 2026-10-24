@@ -1,9 +1,11 @@
 // LLM router: every model call goes through here. One OpenAI-compatible endpoint (Ollama by default; tests point
 // LLM_BASE_URL at a fake). Per call: a role (picks the model), a versioned prompt file, a JSON schema that is both sent
 // as structured output and turned into a Zod validator, one repair retry, the response cache, and an `llm_calls` row.
+import { AsyncLocalStorage } from "node:async_hooks";
 import { readdirSync, readFileSync } from "node:fs";
 import { z } from "zod";
 import { sql } from "./db";
+import { redact } from "./guard";
 
 export type Role = "extract" | "relate" | "derive" | "forget" | "chat" | "judge"; // judge: evals only
 type Schema = Record<string, unknown>;
@@ -37,6 +39,10 @@ export function pipelineVersion() {
   return sha256(JSON.stringify([names.map((n) => prompt(n).version), roles.map(modelFor)])).slice(0, 12);
 }
 
+// Calls made inside withDreamRun(id, ...) are logged against that dream run.
+const dreamRun = new AsyncLocalStorage<string>();
+export const withDreamRun = <T>(id: string, fn: () => Promise<T>) => dreamRun.run(id, fn);
+
 const validators = new WeakMap<Schema, z.ZodType>();
 const validator = (schema: Schema) => {
   let v = validators.get(schema);
@@ -65,9 +71,9 @@ async function log(row: {
   cached: boolean; ok: boolean; attempts: number; error?: string; raw?: string;
 }) {
   try {
-    await sql`insert into llm_calls (role, model, prompt_version, input_hash, tokens_in, tokens_out, latency_ms, cached, ok, attempts, error, raw_output)
+    await sql`insert into llm_calls (role, model, prompt_version, input_hash, tokens_in, tokens_out, latency_ms, cached, ok, attempts, error, raw_output, dream_run_id)
       values (${row.role}, ${row.model}, ${row.promptVersion}, ${row.inputHash}, ${row.usage?.in ?? null}, ${row.usage?.out ?? null},
-              ${Math.round(row.latencyMs)}, ${row.cached}, ${row.ok}, ${row.attempts}, ${row.error ?? null}, ${row.raw ?? null})`;
+              ${Math.round(row.latencyMs)}, ${row.cached}, ${row.ok}, ${row.attempts}, ${row.error ?? null}, ${row.raw ?? null}, ${dreamRun.getStore() ?? null})`;
   } catch (e) {
     console.error("llm_calls log", e); // logging must never fail the call
   }
@@ -82,7 +88,7 @@ export class LlmError extends Error {}
 export async function call<T>(role: Role, promptName: string, input: unknown, schema: Schema): Promise<T> {
   const p = prompt(promptName);
   const model = modelFor(role);
-  const user = JSON.stringify(input);
+  const user = redact(JSON.stringify(input)).text; // last line of defence: callers redact first
   const inputHash = sha256(user);
   const key = sha256(JSON.stringify([role, model, p.version, schema, user]));
   const started = performance.now();
@@ -141,6 +147,7 @@ export type ChatMessage = Msg;
 export async function* stream(role: "chat", messages: ChatMessage[], signal?: AbortSignal): AsyncGenerator<string> {
   const model = modelFor(role);
   const started = performance.now();
+  messages = messages.map((m) => ({ ...m, content: redact(m.content).text }));
   const inputHash = sha256(JSON.stringify(messages));
   let ok = false;
   let error: string | undefined;

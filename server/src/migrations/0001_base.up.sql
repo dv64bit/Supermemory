@@ -1,3 +1,5 @@
+-- 0001 base: the v1 schema plus the P1 LLM tables, exactly as the old single schema.sql had them.
+-- Every statement is idempotent, so a database created by schema.sql before the runner existed adopts it as a no-op.
 create extension if not exists vector;
 
 create table if not exists namespaces (

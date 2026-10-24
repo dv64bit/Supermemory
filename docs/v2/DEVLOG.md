@@ -364,3 +364,68 @@ None new. Inputs for P3 (shortcut, speaker attribution, grounding, dates) and P4
 - The owner spot-checked the four hand-written sets in `eval/data/` (retrieval, extraction, relation, grounding) and found no problems. No changes were made.
 - The P1 baseline numbers in `BASELINE.md` are now final rather than provisional. BASELINE.md, NEXT.v2 and `eval/README.md` were updated to say so.
 - BASELINE.md also gained a plain-language summary at the end, at the owner's request.
+
+---
+
+## 2026-10-24: P2, migrations, audit tables and secret guard
+
+The router, cache and prompt files were already pulled into P1-A, so P2 is the other three parts. Done when (PLAN.v2 §8): migrations are reversible and E1 is still green. Both hold.
+
+**Migration runner** (`server/src/db.ts`, CLI `src/migrate.ts`)
+
+- **Files:** numbered `src/migrations/NNNN_name.up.sql` + `.down.sql`, recorded in `schema_migrations` with a content hash. Each runs in its own transaction under an advisory lock.
+- **Safety:** editing an applied migration is refused. Rollback is for development.
+- **Commands:** `bun run db:migrate | db:rollback [steps] | db:status`. The server still migrates on start.
+- **0001_base:** the old `schema.sql`, moved unchanged. All of it is idempotent, so a database made by `schema.sql` adopts it as a no-op.
+- **0002_bitemporal** (PLAN.v2 §2 memory columns):
+  - New columns: `valid_from`, `valid_to`, `learned_at`, `speaker`, `subject`, `confidence`, `source_span`, `sensitivity`, `status`, `pinned`, `pipeline_version`, `dream_run_id`, plus `embedding_model` on memories and chunks.
+  - Backfill per PRD.v2: `valid_from = coalesce(doc_date, created_at)`, `learned_at = created_at`, `speaker = 'document'`, `confidence = 0.7`.
+  - Inferences become `pending_review`, and declined ones `rejected`.
+  - Superseded memories get `valid_to` = their successor's `valid_from`; expiring ones get `valid_to = forget_after`.
+- **0003_audit:** `dream_runs`, `memory_events`, `entities`, `memory_entities`, `review_items`, `llm_calls.dream_run_id`, `documents.redactions`.
+- **Deviation from the PLAN sketch:** memories are referenced by `pk` (like `memory_edges`), and `dream_runs.document_pks` is `bigint[]`, because documents have bigint keys.
+
+**Audit trail**
+
+- Every `dream()` is a `dream_runs` row: status, pipeline version, and stats (candidates, added, updated, extended, duplicates, inferences).
+- Its LLM calls carry `dream_run_id`, via `AsyncLocalStorage` in the router (`withDreamRun`).
+- `memory_events` (`src/events.ts`) is written in the same transaction as each change:
+  - dreamer: create, update, supersede, extend, strengthen, derive;
+  - api: forget (by id, semantic), restore;
+  - user: approve/reject in review;
+  - sweeper: expire, decay.
+- **New engine writes:** dream now fills the new columns. `valid_from` is the document date, and a superseded memory's `valid_to` is clamped so it never precedes its `valid_from` (the late-arrival bug itself is P3). Speaker and confidence get the legacy values until P3.
+- **Status:** inferences are `pending_review`; approve → `active`, decline → `rejected`.
+- **No behaviour change:** API responses are unchanged.
+- **Not yet used:** `entities`, `memory_entities` and `review_items` exist but stay empty until P3/P5.
+
+**Secret guard** (`src/guard.ts`, D0)
+
+- **What it catches:** private keys; Anthropic, OpenAI, Stripe, AWS, GitHub, GitLab, Slack, Google and Hugging Face keys; JWTs; URL credentials; bearer tokens; labelled passwords and API keys; card numbers (Luhn + card prefix, so phone numbers, order ids and ms timestamps pass). Each match is replaced with `[REDACTED:<kind>]`.
+- **Where it runs:**
+  1. On ingest, so `documents.raw` is stored redacted unless `STORE_RAW_SECRETS=true`.
+  2. On extracted text before chunks, memories and the extract call, so fetched pages are covered too.
+  3. On chat messages.
+  4. In the LLM router, as a last line of defence.
+- `documents.redactions` holds kinds and counts, never the values.
+
+**Tests**
+
+- **New:** `migrations` (3: full up → down → up round trip, edited-migration refusal, v1 backfill), `guard` (15: a secret corpus and clean text), `audit` (5: dream runs, events, raw and derived storage, chat).
+- All key-shaped fixtures are assembled at runtime (push protection).
+- The E1 target "secrets are redacted before any LLM sees the text" now passes and is a normal `test`.
+- **E1** (`eval/runs/…08-39-33Z-e1-suite`): 57 pass, 0 unexpected failures, 16 todo, 11 targets open. Web 1/1. `tsc` clean in server and eval.
+- E2 retrieval rerun: unchanged (recall@10 0.844, MRR 0.770). The other E2 runners pass the fake-LLM smoke test.
+- **Flaky test:** one full-suite run before any P2 change had a single e1-v2 failure that didn't reproduce in 3 reruns. Watch for it.
+
+**Finding for P3**
+
+The near-duplicate shortcut in `relateCandidates` stores a neighbour's similarity only for the first candidate that finds it. A later candidate that is an exact duplicate of that neighbour then misses the shortcut and goes to the relate LLM. This was found while writing the audit test, which orders its candidates around it. P3 removes or replaces the shortcut anyway.
+
+**In simple words**
+
+1. **Safe database upgrades.** Database changes are now numbered steps, each with an undo, and the tests prove the undo works. Existing memories are kept and filled in with sensible defaults.
+2. **A change log.** Every create, update, merge, forget, restore or approve on a memory is recorded with who did it and why. Each processing run and its AI calls are recorded too. This is what will later answer "why do you know this?".
+3. **Secret protection.** API keys, passwords, tokens, private keys and card numbers become `[REDACTED]` before anything is saved or sent to the AI, in documents, web pages and chat.
+
+57 tests pass, 0 fail (23 new). Search quality is unchanged at 84%. The owner's own database upgrades on the next server start; `bun run db:rollback 2` undoes it.

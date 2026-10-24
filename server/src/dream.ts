@@ -1,13 +1,18 @@
 // "Dreaming": turn an indexed document into atomic memories linked to what the namespace already knew.
 // Three LLM passes per document: extract -> relate (to nearest existing memories) -> derive (inferences).
 import { sql, toVector } from "./db";
-import { embed } from "./embed";
-import { call } from "./llm";
+import { embed, EMBED_MODEL } from "./embed";
+import { logEvents, type MemoryEvent } from "./events";
+import { call, pipelineVersion, withDreamRun } from "./llm";
 
 const NEIGHBORS = 5;
 const NEIGHBOR_MIN_SIM = 0.55;
 const MAX_CANDIDATES = 30;
 const DUPLICATE_SIM = 0.92; // ponytail: embedding near-identity as "already known"; tune on real data
+// The current engine doesn't attribute speakers or score confidence; these are the PRD.v2 backfill values for
+// v1-engine memories, so everything written before Dreamer v2 (P3) looks the same.
+const LEGACY_SPEAKER = "document";
+const LEGACY_CONFIDENCE = 0.7;
 
 type Kind = "fact" | "preference" | "episode";
 type Candidate = { content: string; kind: Kind; expiresAt: string | null; bucket?: string | null };
@@ -120,26 +125,50 @@ export async function relateCandidates(ns: string, cands: { content: string }[],
   return { neighbors, candNeighbors, decisions };
 }
 
+type Stats = { candidates: number; added: number; updated: number; extended: number; duplicates: number; inferences: number };
+type Run = { id: string; pv: string; stats: Stats };
+type Doc = { pk: number; ns: string; content: string; metadata: unknown; ctx: string | null; doc_date: Date };
+
+/** One dream run per document: recorded in dream_runs, and every LLM call and memory event points at it. */
 export async function dream(docPk: number) {
   const [doc] = await sql`
     select d.pk, d.ns, d.content, d.metadata, coalesce(d.supporting_context, n.supporting_context) as ctx,
            coalesce(d.doc_date, d.created_at) as doc_date
     from documents d join namespaces n on n.id = d.ns where d.pk = ${docPk}`;
   if (!doc?.content?.trim()) return;
+  const pv = pipelineVersion();
+  const [{ id }] = await sql`insert into dream_runs (ns, document_pks, pipeline_version) values (${doc.ns}, array[${doc.pk}]::bigint[], ${pv}) returning id`;
+  const run: Run = { id, pv, stats: { candidates: 0, added: 0, updated: 0, extended: 0, duplicates: 0, inferences: 0 } };
+  try {
+    await withDreamRun(id, () => dreamDoc(doc as Doc, run));
+    await sql`update dream_runs set status = 'done', stats = ${run.stats}, finished_at = now() where id = ${id}`;
+  } catch (e) {
+    await sql`update dream_runs set status = 'failed', stats = ${run.stats}, error = ${String((e as Error).message ?? e)}, finished_at = now() where id = ${id}`;
+    throw e;
+  }
+}
 
+async function dreamDoc(doc: Doc, run: Run) {
   const { cands, bucketNames } = await extractCandidates(doc.ns, { content: doc.content, documentDate: doc.doc_date, supportingContext: doc.ctx });
+  run.stats.candidates = cands.length;
   if (!cands.length) return;
   const vecs = await embed(cands.map((c) => c.content));
   const { neighbors, candNeighbors, decisions } = await relateCandidates(doc.ns, cands, vecs);
+  const ev = (e: Omit<MemoryEvent, "actor" | "pipelineVersion" | "dreamRunId">): MemoryEvent =>
+    ({ ...e, actor: "dreamer", pipelineVersion: run.pv, dreamRunId: run.id });
 
   const inserted: { pk: number; content: string; related: number[] }[] = [];
   await sql.begin(async (tx) => {
+    const events: MemoryEvent[] = [];
     const insert = async (c: Candidate, v: number[], extra: { version?: number; root_id?: string | null; is_inference?: boolean } = {}) => {
       const bucket = c.bucket && bucketNames.has(c.bucket) ? c.bucket : null;
+      const expires = expiry(c.expiresAt ?? null, doc.doc_date);
       const [m] = await tx`
-        insert into memories (ns, content, kind, bucket, forget_after, version, root_id, is_inference, metadata, source_document_pk, embedding)
-        values (${doc.ns}, ${c.content}, ${c.kind}, ${bucket}, ${expiry(c.expiresAt ?? null, doc.doc_date)}, ${extra.version ?? 1}, ${extra.root_id ?? null},
-                ${extra.is_inference ?? false}, ${doc.metadata}, ${doc.pk}, ${toVector(v)}::vector)
+        insert into memories (ns, content, kind, bucket, forget_after, version, root_id, is_inference, metadata, source_document_pk, embedding,
+                              valid_from, valid_to, speaker, confidence, pipeline_version, dream_run_id, embedding_model)
+        values (${doc.ns}, ${c.content}, ${c.kind}, ${bucket}, ${expires}, ${extra.version ?? 1}, ${extra.root_id ?? null},
+                ${extra.is_inference ?? false}, ${doc.metadata}, ${doc.pk}, ${toVector(v)}::vector,
+                ${doc.doc_date}, ${expires}, ${LEGACY_SPEAKER}, ${LEGACY_CONFIDENCE}, ${run.pv}, ${run.id}, ${EMBED_MODEL})
         returning pk, id`;
       if (!extra.root_id) await tx`update memories set root_id = id where pk = ${m.pk}`;
       return m as { pk: number; id: string };
@@ -149,27 +178,44 @@ export async function dream(docPk: number) {
       const d = decisions.get(i) ?? { relation: "new", target: null };
       const target = d.target !== null ? neighbors[d.target] : undefined;
       if (d.relation === "duplicate" && target) {
-        await tx`update memories set strength = strength + 1, updated_at = now() where pk = ${target.pk}`;
+        const [t] = await tx`update memories set strength = strength + 1, updated_at = now() where pk = ${target.pk} returning strength`;
+        events.push(ev({ memoryPk: target.pk, action: "strengthen", reason: `duplicate: ${c.content}`, before: { strength: t.strength - 1 }, after: { strength: t.strength } }));
+        run.stats.duplicates++;
         continue;
       }
       if (d.relation === "updates" && target) {
         const m = await insert(c, vecs[i], { version: target.version + 1, root_id: target.root_id ?? target.id });
-        await tx`update memories set is_latest = false, updated_at = now() where pk = ${target.pk}`;
+        // ponytail: an older document can still supersede a newer fact (P3 fixes the order); valid_to never precedes valid_from.
+        await tx`update memories set is_latest = false, valid_to = greatest(coalesce(valid_from, ${doc.doc_date}), ${doc.doc_date}), updated_at = now()
+          where pk = ${target.pk}`;
         await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${target.pk}, 'updates')`;
+        events.push(
+          ev({ memoryPk: m.pk, action: "update", after: { content: c.content, updates: target.id } }),
+          ev({ memoryPk: target.pk, action: "supersede", reason: `updated by ${m.id}`, before: { is_latest: true }, after: { is_latest: false, superseded_by: m.id } }),
+        );
+        run.stats.updated++;
         inserted.push({ pk: m.pk, content: c.content, related: [] });
         continue;
       }
       const m = await insert(c, vecs[i]);
-      if (d.relation === "extends" && target) await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${target.pk}, 'extends')`;
+      if (d.relation === "extends" && target) {
+        await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${target.pk}, 'extends')`;
+        events.push(ev({ memoryPk: m.pk, action: "extend", after: { content: c.content, extends: target.id } }));
+        run.stats.extended++;
+      } else {
+        events.push(ev({ memoryPk: m.pk, action: "create", after: { content: c.content, kind: c.kind } }));
+        run.stats.added++;
+      }
       inserted.push({ pk: m.pk, content: c.content, related: candNeighbors[i].map((j) => neighbors[j].pk) });
     }
+    await logEvents(events, tx);
   });
 
-  await derive(doc, inserted);
+  await derive(doc, inserted, run);
 }
 
 // Inferences over the touched cluster: new memories plus the live neighbors they landed next to.
-async function derive(doc: { ns: string; pk: number; metadata: unknown }, inserted: { pk: number; content: string; related: number[] }[]) {
+async function derive(doc: Doc, inserted: { pk: number; content: string; related: number[] }[], run: Run) {
   if (!inserted.length) return;
   const pks = [...new Set([...inserted.map((m) => m.pk), ...inserted.flatMap((m) => m.related)])];
   const pool = (await sql`
@@ -187,11 +233,17 @@ async function derive(doc: { ns: string; pk: number; metadata: unknown }, insert
       const [{ known }] = await tx`select exists (select 1 from memories where ns = ${doc.ns} and is_latest and not is_forgotten
         and 1 - (embedding <=> ${toVector(vecs[k])}::vector) >= ${DUPLICATE_SIM}) as known`;
       if (known) continue;
+      // Inferences wait for review (approve/decline).
       const [m] = await tx`
-        insert into memories (ns, content, kind, is_inference, metadata, source_document_pk, embedding)
-        values (${doc.ns}, ${x.content}, 'fact', true, ${doc.metadata}, ${doc.pk}, ${toVector(vecs[k])}::vector)
+        insert into memories (ns, content, kind, is_inference, status, metadata, source_document_pk, embedding,
+                              valid_from, speaker, confidence, pipeline_version, dream_run_id, embedding_model)
+        values (${doc.ns}, ${x.content}, 'fact', true, 'pending_review', ${doc.metadata}, ${doc.pk}, ${toVector(vecs[k])}::vector,
+                ${doc.doc_date}, ${LEGACY_SPEAKER}, ${LEGACY_CONFIDENCE}, ${run.pv}, ${run.id}, ${EMBED_MODEL})
         returning pk`;
       await tx`update memories set root_id = id where pk = ${m.pk}`;
+      const from = [...new Set(x.from)].filter((j) => pool[j]).map((j) => pool[j].pk);
+      await logEvents([{ memoryPk: m.pk, action: "derive", actor: "dreamer", after: { content: x.content, from }, pipelineVersion: run.pv, dreamRunId: run.id }], tx);
+      run.stats.inferences++;
       for (const j of new Set(x.from)) {
         if (pool[j]) await tx`insert into memory_edges (src, dst, rel) values (${m.pk}, ${pool[j].pk}, 'derives') on conflict do nothing`;
       }

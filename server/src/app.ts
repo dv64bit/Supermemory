@@ -10,6 +10,8 @@ import { mountMcp } from "./mcp";
 import { mountChat } from "./chat";
 import { mountLegacy } from "./legacy";
 import { extractFile, MAX_FILE, UnsupportedFile } from "./extract";
+import { redact, storeRawSecrets } from "./guard";
+import { logEvents } from "./events";
 
 const nsParam = z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/);
 const metaValue = z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]);
@@ -53,15 +55,18 @@ async function ensureNs(ns: string) {
 type DocIn = z.infer<typeof addBody>;
 async function upsertDoc(ns: string, d: DocIn, file?: { title: string; type: string }) {
   const id = d.id ?? crypto.randomUUID();
+  const guarded = redact(d.content);
+  const raw = storeRawSecrets() ? d.content : guarded.text;
+  const redactions = Object.keys(guarded.findings).length ? guarded.findings : null;
   // Re-sending a known id updates in place; the worker skips re-indexing if extracted text is unchanged.
   const [row] = await sql`
-    insert into documents (ns, id, raw, metadata, supporting_context, doc_date, task_type, dreaming, status, title, type)
-    values (${ns}, ${id}, ${d.content}, ${d.metadata ?? {}}, ${d.supportingContext ?? null}, ${parseDate(d.date)},
+    insert into documents (ns, id, raw, redactions, metadata, supporting_context, doc_date, task_type, dreaming, status, title, type)
+    values (${ns}, ${id}, ${raw}, ${redactions}, ${d.metadata ?? {}}, ${d.supportingContext ?? null}, ${parseDate(d.date)},
             ${d.taskType ?? "memory"}, ${d.dreaming ?? "dynamic"}, 'queued', ${file?.title ?? null},
             ${file?.type ?? (/^https?:\/\/\S+$/i.test(d.content.trim()) ? "webpage" : "text")})
     on conflict (ns, id) do update set
       title = coalesce(excluded.title, documents.title), type = excluded.type,
-      raw = excluded.raw, metadata = excluded.metadata, supporting_context = excluded.supporting_context,
+      raw = excluded.raw, redactions = excluded.redactions, metadata = excluded.metadata, supporting_context = excluded.supporting_context,
       doc_date = excluded.doc_date, task_type = excluded.task_type, dreaming = excluded.dreaming,
       status = 'queued', updated_at = now()
     returning id, status`;
@@ -227,7 +232,8 @@ export function createApp(apiKey: string) {
     const n = ns(c);
     const { ids } = z.object({ ids: z.array(z.string().min(1)).min(1).max(500) }).strict().parse(await c.req.json());
     const rows = await sql`update memories set is_forgotten = true, forget_reason = 'forgotten by id', updated_at = now()
-      where ns = ${n} and id in ${sql(ids)} returning id, content`;
+      where ns = ${n} and id in ${sql(ids)} returning pk, id, content`;
+    await logEvents(rows.map((r: any) => ({ memoryPk: r.pk, action: "forget", actor: "api", reason: "forgotten by id" })));
     const found = new Set(rows.map((r: any) => r.id));
     return c.json({
       count: rows.length,
@@ -245,7 +251,9 @@ export function createApp(apiKey: string) {
   app.post("/ns/:namespace/memories/:id/restore", async (c) => {
     const [m] = await sql`update memories set is_forgotten = false, forget_reason = null, forget_after = null, updated_at = now()
       where ns = ${ns(c)} and id = ${c.req.param("id")} returning *`;
-    return m ? c.json(memoryJson(m)) : c.json({ error: "Memory not found" }, 404);
+    if (!m) return c.json({ error: "Memory not found" }, 404);
+    await logEvents([{ memoryPk: m.pk, action: "restore", actor: "api" }]);
+    return c.json(memoryJson(m));
   });
 
   // Inferred-memory review (not in v5; v3 had it): approve keeps it as a trusted fact, decline forgets it.
@@ -253,10 +261,12 @@ export function createApp(apiKey: string) {
     const n = ns(c);
     const { action } = z.object({ action: z.enum(["approve", "decline"]) }).strict().parse(await c.req.json());
     const [m] = action === "approve"
-      ? await sql`update memories set is_inference = false, updated_at = now() where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`
-      : await sql`update memories set is_forgotten = true, forget_reason = 'declined in review', updated_at = now()
+      ? await sql`update memories set is_inference = false, status = 'active', updated_at = now()
+          where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`
+      : await sql`update memories set is_forgotten = true, forget_reason = 'declined in review', status = 'rejected', updated_at = now()
           where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`;
     if (!m) return c.json({ error: "Inferred memory not found" }, 404);
+    await logEvents([{ memoryPk: m.pk, action: action === "approve" ? "approve" : "reject", actor: "user", reason: "inference review" }]);
     return c.json(memoryJson(m));
   });
 

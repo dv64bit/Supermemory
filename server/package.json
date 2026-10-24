@@ -26,6 +26,9 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
+    "db:migrate": "bun src/migrate.ts up",
+    "db:rollback": "bun src/migrate.ts down",
+    "db:status": "bun src/migrate.ts status",
     "test": "fail=0; for f in test/*.test.ts; do bun test $f || fail=1; done; exit $fail",
     "eval:e1": "bun ../eval/e1.ts",
     "eval:e2": "bun ../eval/e2/run.ts",

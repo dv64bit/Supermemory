@@ -1,0 +1,83 @@
+{
+  "id": "2026-10-24T08-39-33Z-e1-suite",
+  "git": {
+    "sha": "7878e8d",
+    "dirty": true
+  },
+  "layer": "e1",
+  "name": "suite",
+  "startedAt": "2026-10-24T08:39:33.290Z",
+  "durationMs": 59167,
+  "config": {
+    "files": 8,
+    "llm": "fake"
+  },
+  "metrics": {
+    "pass": 57,
+    "fail": 0,
+    "todo": 16,
+    "targets_open": 11,
+    "targets_fixed": 0
+  },
+  "groups": {
+    "audit": {
+      "pass": 5,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    },
+    "contract": {
+      "pass": 9,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 4,
+      "targets_fixed": 0
+    },
+    "e1-v2": {
+      "pass": 1,
+      "fail": 0,
+      "todo": 16,
+      "targets_open": 6,
+      "targets_fixed": 0
+    },
+    "engine": {
+      "pass": 15,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 1,
+      "targets_fixed": 0
+    },
+    "guard": {
+      "pass": 15,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    },
+    "llm": {
+      "pass": 5,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    },
+    "mcp": {
+      "pass": 4,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    },
+    "migrations": {
+      "pass": 3,
+      "fail": 0,
+      "todo": 0,
+      "targets_open": 0,
+      "targets_fixed": 0
+    }
+  },
+  "notes": [
+    "gate passed: 0 unexpected failures"
+  ]
+}

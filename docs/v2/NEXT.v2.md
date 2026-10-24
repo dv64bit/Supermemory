@@ -2,25 +2,18 @@
 
 This file is overwritten as work moves. History lives in `DEVLOG.md`; things skipped on purpose live in `DEFERRED.md`. Supersedes `NEXT.md`.
 
-## Current state (2026-10-23)
+## Current state (2026-10-24)
 
-- **Phase:** P1 is **done**. All baseline numbers are in `docs/v2/BASELINE.md`. Next is P2.
-- **Commits:** the P1 close (real-model E2 runs, BASELINE.md, these docs) is waiting for the owner to commit and push.
-- **LLM:** local Ollama with `qwen3:4b-instruct`, CPU only, the same model for every role. No paid APIs.
+- **Phase:** P2 is code-complete: database migrations, audit tables and the secret guard. It is waiting for the owner to commit and push. P1 is done (`docs/v2/BASELINE.md`).
+- **Tests:** E1 has 57 passing, 0 unexpected failures, 16 todos and 11 open targets. The secret-redaction target is now fixed. Web 1/1.
+- **LLM:** local Ollama with `qwen3:4b-instruct`, CPU only. No paid APIs.
 - **Eval/test database:** local role `supermem`; the URLs are in `server/.env` (git-ignored).
-- **Headline baseline:**
-  - Retrieval: recall@10 0.844.
-  - Extraction: F1 0.672, with a forbidden-fact rate of 0.667.
-  - Relation: accuracy 0.617.
-  - Grounding: unsupported-memory rate 0.183; judge accuracy 0.889.
-  - Latency at 100k: over budget everywhere.
-- **Test sets:** the four sets in `eval/data/` were spot-checked by the owner (2026-10-23). The baseline numbers are final.
+- **Owner's own database:** the next server start upgrades it automatically. The upgrade only adds columns and tables. `bun run db:rollback 2` undoes it.
 
 ## Next
 
-- **P2:** schema v2 migrations and migration runner, audit tables, secret guard (PLAN.v2 §8).
-- **Re-running E2:** `cd server && LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=qwen3:4b-instruct bun run eval:e2`. On CPU this takes about 30 minutes.
-- **Optional:** a bigger judge (`LLM_MODEL_JUDGE=qwen3:8b`) if the machine can run it. The 4B judge passes some hearsay.
+- **P3, Dreamer v2 (D0–D9) and lifecycle config.** The inputs are in BASELINE.md "Findings". New input from P2: the near-duplicate shortcut reads a neighbour's similarity to the *first* candidate that found it, so a true duplicate can miss the shortcut when it isn't the first candidate in the unit.
+- **After P3:** re-run E2 and compare with `bun run eval:compare`.
 
 ## Standing decisions
 
@@ -49,5 +42,6 @@ P2 schema + migrations + guard → P3 Dreamer v2 → P4 Retrieval v2 + context +
 - **API:** `cd server && SUPERMEM_API_KEY=dev bun --watch src/index.ts` (127.0.0.1:6767).
 - **Web:** `cd web && bun run dev` (localhost:5173). On first open, enter the API key in Settings.
 - **MCP:** `claude mcp add --scope user --transport http supermem http://127.0.0.1:6767/mcp --header "Authorization: Bearer dev"`
+- **Database:** the server applies pending migrations on start. By hand: `bun run db:status`, `db:migrate`, `db:rollback [steps]` (rollback is for development). Migrations live in `server/src/migrations/NNNN_name.{up,down}.sql`. Never edit one that has been applied; add a new one.
 - **Tests:** `cd server && bun run test`. This needs Postgres with pgvector and a role that can create databases. Set `TEST_DATABASE_URL` if the default `postgres://localhost/postgres` doesn't work. The first run downloads the bge embedding model.
 - **Evals:** from `server/`, run `bun run eval:e1`, `eval:e2 [--only name]`, `eval:latency`, `eval:compare`. See `eval/README.md`.

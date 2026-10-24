@@ -4,6 +4,7 @@ import type { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { stream as llmStream, type ChatMessage } from "./llm";
+import { redact } from "./guard";
 
 const body = z.object({
   namespace: z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/),
@@ -40,7 +41,9 @@ export function mountChat(app: Hono, apiKey: string) {
   };
 
   app.post("/chat", async (c) => {
-    const { namespace: ns, conversationId, messages } = body.parse(await c.req.json());
+    const parsed = body.parse(await c.req.json());
+    const { namespace: ns, conversationId } = parsed;
+    const messages = parsed.messages.map((m) => ({ ...m, content: redact(m.content).text }));
     const cid = conversationId ?? crypto.randomUUID();
     const last = messages.at(-1)!.content;
 
