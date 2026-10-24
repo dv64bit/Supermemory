@@ -429,3 +429,126 @@ The near-duplicate shortcut in `relateCandidates` stores a neighbour's similarit
 3. **Secret protection.** API keys, passwords, tokens, private keys and card numbers become `[REDACTED]` before anything is saved or sent to the AI, in documents, web pages and chat.
 
 57 tests pass, 0 fail (23 new). Search quality is unchanged at 84%. The owner's own database upgrades on the next server start; `bun run db:rollback 2` undoes it.
+
+### Summary of P2
+What P2 added:
+
+  1. Safe database upgrades. Changes to the database are now numbered steps, and each one has an undo. The test suite applies every step, undoes all of them and applies them again, so we know the undo works. Your existing memories are kept and filled in with sensible default values.
+  2. A change log. Every time a memory is created, updated, merged, forgotten, restored or approved, the database records who did it and why. Each processing run is recorded too, along with the AI calls it made. Later this is what will answer "why do you know this?".
+  3. Secret protection. API keys, passwords, tokens, private keys and card numbers are replaced with [REDACTED] before anything is saved or sent to Qwen. This applies to documents, web pages and chat. One of the open targets from P1, "secrets are redacted before any LLM sees the text", now passes.
+
+  Test results: 57 pass, 0 failures. There are 23 new tests: 3 for upgrades, 15 for secrets and 5 for the change log. The search-quality score is the same as in P1 (84%).
+
+  Worth knowing:
+  - The next time you start the server, it will upgrade your own database automatically. The upgrade only adds things and deletes nothing. If you ever need to undo it, run cd server && bun run db:rollback 2.
+  - While writing the tests I found a small bug in the old duplicate check. It sometimes misses an exact duplicate, depending on the order facts arrive in. I noted it for P3, which rewrites that part anyway.
+
+
+---
+
+## 2026-10-24: P3, Dreamer v2 (code done; real-model E2 run still to do)
+
+PLAN.v2 §8 says P3 is done when all E1 v2 scenarios pass and E2 beats the P1 baseline. The E1 half holds: every scenario that belongs to P3 passes. The E2 half is not measured yet, because the real-model run couldn't happen (see "Blocked" below).
+
+**The pipeline** (`dream.ts` orchestrates; one module per stage, matching PRD.v2's module list)
+
+| Stage | Where | What it does now |
+|---|---|---|
+| D0 Guard | `guard.ts` (P2) | unchanged |
+| D1 Extract | `extractor.ts`, `extract.v2.md` | One call per unit. Each candidate carries speaker, subject, slot, entities (with aliases), `validFrom`, `expiresAt`, sensitivity, confidence and a source quote. The prompt leads with "who said it". |
+| D2 Ground | `grounder.ts`, `ground.v1.md` | **Code checks:** the quote must be in the new text (token-window match ≥ 0.9) and not only in assistant turns; assistant-speaker candidates are dropped; candidates with an unresolved relative date ("tomorrow") are dropped. **Then one batched LLM support check** (`ground` role; `GROUND_LLM=off` skips it). Rejections and their reasons go into `dream_runs.stats.rejected`. |
+| D3 Entities | `entities.ts` | Exact name/alias match, then embedding match (≥ 0.9, same type), else a new entity. Aliases are recorded. `memory_entities` links each memory as subject or mention. There is no LLM tie-break (DEFERRED #5). |
+| D4 Neighbours | `relator.ts` | Per candidate, the union of: vector top 5 (≥ 0.55), keyword top 5 (OR-query) and same-subject-entity memories (same slot when the candidate has one). Live and non-rejected only; capped at 8 per candidate and 30 in total. |
+| D5 Relate | `relator.ts`, `relate.v2.md` | One batched call: ADD / DUPLICATE / UPDATE / EXTEND / CONFLICT / SKIP, each with a confidence. **The 0.92 near-duplicate shortcut is gone**; only exact (normalised) repeats skip the LLM. |
+| D6 Policy | `relator.ts` `policy()` | **A pure function.** Rules: an older event → HISTORICAL; a pinned target, hearsay over the user, or confidence < `RELATE_UPDATE_MIN` (0.75) → CONFLICT for review; one successor per memory; repeats within a unit are stored once; a link needs an offered target. |
+| D7 Apply | `dream.ts` | One transaction: inserts with every v2 column, supersedes (`valid_to` = the successor's `valid_from`), history rows, edges, `review_items` (`conflict` / `low_confidence`), entity links, events. |
+| D8 Derive | `dream.ts` | As before, but inferences are `pending_review` with an `inference` review item, built only from active memories. Approving or declining resolves the review item. |
+| D9 Profile | — | Deferred (DEFERRED #3). The profile is still computed on read. |
+
+**Other behaviour**
+
+- **Append-only re-ingest** (a growing chat transcript) dreams only the new text, with the last dreamed turn as context. `documents.dreamed_chars`/`dreamed_hash` track what was dreamed.
+- **Any other edit** re-dreams the whole document and ends (`valid_to = now()`, kept as history) the memories it no longer confirms. This replaces the conversation debounce (DEFERRED #4).
+- **Deleting a document** ends its memories' validity instead of leaving them live. `LIVE` now also requires validity and a status other than `rejected`.
+- **Worker order:** it dreams in event-time order: `coalesce(doc_date, created_at)`.
+- **Lifecycle** (`server/lifecycle.yaml`, `lifecycle.ts`, which replaces the sweep in `forget.ts`):
+  - facts never decay;
+  - preference strength is capped at 10;
+  - episodes: `significance · 0.5^(age / 30 d)`, forgotten below 0.05 unless significance ≥ 0.8. An unreinforced episode now lasts about 100 days; it was ~68.
+- **New routes** (`/x/`, not in v5):
+  - `PATCH /ns/{ns}/x/memories/{id}` edits a memory (re-embedded, speaker → user) and pins it; dreaming never supersedes a pinned memory.
+  - `PATCH /ns/{ns}/x/settings {injectSensitive}`: profiles leave out sensitive memories unless this is on.
+- **Migration 0004_dreamer:** `memories.slot`, `documents.dreamed_chars`/`dreamed_hash`, `namespaces.inject_sensitive`, plus indexes.
+- **Prompts:** `extract.v1`, `extract-buckets.v1` and `relate.v1` were deleted (they are in git history); the v2 prompts replace them.
+- **LLM router:**
+  - New `ground` role.
+  - Per-role output caps (`LLM_MAX_TOKENS_<ROLE>`), because a 4B model under a JSON grammar can run until the context is full.
+  - `timeout: false` on fetch: Bun's own 5-minute fetch timeout was cutting slow CPU calls short, so `LLM_TIMEOUT_MS` now applies.
+- **Bun SQL gotcha:** a JS array parameter is sent as `"a,b"` and Postgres rejects it as a malformed array literal. Use `sql.array(xs, "text")`.
+
+**Tests**
+
+- The e1-v2 targets fixed by this phase are now normal tests: late-arriving old fact, numeric update not swallowed, no version fork, deleted document out of search, chat extracted once.
+- **New tests**, each replacing a `test.todo`:
+  - relative date resolved / unresolved rejected;
+  - edited document ends stale memories;
+  - low-confidence UPDATE → review;
+  - CONFLICT never supersedes;
+  - pinned memory protected;
+  - property test (6 dated facts × 3 shuffled arrival orders; the newest in event time is the only latest, with no overlap);
+  - assistant suggestion rejected and stored once confirmed;
+  - third-party attribution;
+  - hearsay can't supersede the user;
+  - hallucination rejected and logged;
+  - sensitive memories kept out of the profile until allowed;
+  - entity alias links "my manager" to Priya.
+- `test/dreamer.test.ts` covers the pure pieces: quote matching, relative dates, entity names, policy.
+- `fake-llm.ts` fills the new extract fields with defaults (the quote defaults to the whole input, so grounding finds it). It also answers `ground`, and accepts either the old relation names or the v2 ops from relate handlers.
+- **E1** (`eval/runs/…10-20-37Z-e1-suite`): **80 pass, 0 unexpected failures, 4 todo, 6 targets open** (was 57 / 16 / 11).
+  - The 4 remaining todos are P4/P6: `as_of`, temporal history queries, inferences ranking below facts, re-dream.
+  - The open targets: 4 v5 mismatches, MMR, and `include=documents`.
+- **Retrieval E2:** unchanged (recall@10 0.844, MRR 0.770). `tsc` clean in server and eval.
+- The E2 runners now measure the new pipeline:
+  - extraction runs `extractUnit` (D1 + D2) and adds speaker accuracy and grounding rejections;
+  - relation runs `relate` (D4–D6) with the data's event dates and reports the final op, HISTORICAL included;
+  - grounding adds part C, the engine's grounder on the labelled pairs.
+- All of them pass the fake-LLM smoke test.
+
+**Blocked: the real-model E2 run**
+
+Ollama became unusably slow today:
+- a 12-token reply took 90 s, and loading the model took 170 s;
+- yesterday's speed was about 6 tokens/s.
+
+**Cause:** memory. The WSL VM has 4.9 GB of RAM. Qwen 4B takes about 3.1 GB, and with the editor server and other processes running, the machine was down to about 70 MB free with 1.5–2 GB of swap in use, so the model keeps paging. Restarting Ollama did not help.
+
+**Options for the owner:** give WSL more memory (`.wslconfig`), close other WSL processes, or switch to a smaller model. Until then, "E2 beats the P1 baseline" is unproven.
+
+**Not done**
+
+Chat replies (`chat.ts`) still put sensitive memories into the chat prompt; only the profile endpoint honours `injectSensitive`. This will be fixed with `x/context` in P4.
+
+**In simple words**
+
+The memory engine has been rebuilt so it saves fewer wrong things:
+- It knows **who said what**. Things the assistant suggested are never saved as your facts, unless you agree to them.
+- Every saved fact must be **backed by your actual words**. Made-up details are thrown away, and the reason is logged.
+- **Dates** like "tomorrow" are turned into real dates.
+- **Updates** are handled safely. Real changes (rent 38k → 42k) replace the old fact. An old fact that arrives late doesn't overwrite a newer one. Uncertain changes, or claims from other people, go to a review list instead of overwriting anything.
+- It recognises that **"my manager" and "Priya"** are the same person.
+- Facts you **edit yourself are locked**, so the engine won't overwrite them.
+- **Health and money details** are left out of your profile unless you allow them.
+- Deleted or edited documents no longer leave stale facts behind.
+
+80 tests pass, 0 fail. We still need to run the quality test with Qwen to prove it beats the P1 scores, but the computer currently doesn't have enough memory to run Qwen at a usable speed.
+
+### Summary of P3
+What P3 changed:
+- Who said what: the assistant's suggestions are never saved as your facts, unless you agree to them.
+- No made-up details: each saved fact must match your actual words. Anything that doesn't match is thrown away, and the reason is logged.
+- Real dates: "tomorrow" is saved as an actual date.
+- Safer updates: a real change like rent going from 38k to 42k replaces the old fact. An older fact that arrives late doesn't overwrite a newer one. Uncertain changes, or things other people said, go to a review list instead of overwriting anything.
+- People: it knows "my manager" and "Priya" are the same person.
+- Your edits are locked: facts you edit yourself won't be overwritten.
+- Private details: health and money facts are kept out of your profile unless you allow them.
+- Edited or deleted documents no longer leave old facts behind.

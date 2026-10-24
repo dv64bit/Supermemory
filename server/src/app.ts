@@ -1,6 +1,7 @@
 import { Hono, type Context } from "hono";
 import { z, ZodError } from "zod";
-import { sql } from "./db";
+import { sql, toVector } from "./db";
+import { embed } from "./embed";
 import { search } from "./search";
 import { compileFilter, filterSchema } from "./filter";
 import { LIVE, memoryJson, related } from "./memories";
@@ -197,7 +198,14 @@ export function createApp(apiKey: string) {
   app.delete("/ns/:namespace/document", async (c) => {
     const n = ns(c);
     const { ids } = deleteBody.parse(await c.req.json());
-    const gone = await sql`delete from documents where ns = ${n} and id in ${sql(ids)} returning id`;
+    // Memories a deleted document taught us stay as history: their validity ends now, so default search drops them.
+    const gone = await sql.begin(async (tx) => {
+      const ended = await tx`update memories m set valid_to = now(), updated_at = now() from documents d
+        where d.ns = ${n} and d.id in ${sql(ids)} and m.source_document_pk = d.pk and (m.valid_to is null or m.valid_to > now())
+        returning m.pk`;
+      await logEvents(ended.map((r: any) => ({ memoryPk: r.pk, action: "expire" as const, actor: "api" as const, reason: "source document deleted" })), tx);
+      return tx`delete from documents where ns = ${n} and id in ${sql(ids)} returning id`;
+    });
     const found = new Set(gone.map((r: any) => r.id));
     return c.json({ count: found.size, errors: ids.filter((i) => !found.has(i)).map((id) => ({ id, error: "not found" })) });
   });
@@ -267,6 +275,8 @@ export function createApp(apiKey: string) {
           where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`;
     if (!m) return c.json({ error: "Inferred memory not found" }, 404);
     await logEvents([{ memoryPk: m.pk, action: action === "approve" ? "approve" : "reject", actor: "user", reason: "inference review" }]);
+    await sql`update review_items set status = ${action === "approve" ? "approved" : "rejected"}, resolved_at = now()
+      where memory_pk = ${m.pk} and kind = 'inference' and status = 'open'`;
     return c.json(memoryJson(m));
   });
 
@@ -385,6 +395,31 @@ export function createApp(apiKey: string) {
         ...mems.filter((m: any) => docId.has(m.source_document_pk)).map((m: any) => ({ source: m.id, target: docId.get(m.source_document_pk), relation: "source" })),
       ],
     });
+  });
+
+  // v2 extensions (not in v5). Editing a memory pins it: dreaming never supersedes a pinned memory on its own.
+  app.patch("/ns/:namespace/x/memories/:id", async (c) => {
+    const n = ns(c);
+    const body = z.object({ content: z.string().min(1).max(2000).optional(), pinned: z.boolean().optional() }).strict()
+      .refine((b) => b.content !== undefined || b.pinned !== undefined, { message: "content or pinned is required" }).parse(await c.req.json());
+    const [old] = await sql`select pk, content, pinned from memories where ns = ${n} and id = ${c.req.param("id")}`;
+    if (!old) return c.json({ error: "Memory not found" }, 404);
+    const pinned = body.pinned ?? true;
+    const vec = body.content !== undefined ? toVector((await embed([body.content]))[0]) : null;
+    const [m] = await sql`update memories set content = coalesce(${body.content ?? null}, content), pinned = ${pinned},
+        embedding = coalesce(${vec}::vector, embedding), speaker = case when ${body.content !== undefined} then 'user' else speaker end,
+        updated_at = now()
+      where pk = ${old.pk} returning *`;
+    await logEvents([{ memoryPk: old.pk, action: "edit", actor: "user", before: { content: old.content, pinned: old.pinned }, after: { content: m.content, pinned } }]);
+    return c.json({ ...memoryJson(m), pinned: m.pinned });
+  });
+
+  app.patch("/ns/:namespace/x/settings", async (c) => {
+    const n = ns(c);
+    const body = z.object({ injectSensitive: z.boolean() }).strict().parse(await c.req.json());
+    await ensureNs(n);
+    await sql`update namespaces set inject_sensitive = ${body.injectSensitive}, updated_at = now() where id = ${n}`;
+    return c.json({ injectSensitive: body.injectSensitive });
   });
 
   mountChat(app, apiKey);

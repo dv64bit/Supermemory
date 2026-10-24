@@ -169,10 +169,14 @@ test("semantic forget: dry run reports, real run forgets only what the LLM picke
 
 test("sweep: unreinforced episodes decay and are forgotten; expired facts are flagged", async () => {
   const { sql } = await import("../src/db");
-  const { sweep } = await import("../src/forget");
+  const { sweep } = await import("../src/lifecycle");
   await client.add(NS, { content: "Alex went to the dentist." });
   await drain();
-  await sql`update memories set updated_at = now() - interval '90 days' where content like '%dentist%'`;
+  // lifecycle.yaml: significance 0.5, half-life 30 days, forget below 0.05 -> gone after ~100 days unreinforced.
+  await sql`update memories set updated_at = now() - interval '60 days' where content like '%dentist%'`;
+  await sweep();
+  expect((await client.list(NS, "memories", { include: { forgotten: true } })).memories!.find((m) => m.memory.includes("dentist"))?.isForgotten).toBe(false);
+  await sql`update memories set updated_at = now() - interval '120 days' where content like '%dentist%'`;
   await sweep();
   const all = await client.list(NS, "memories", { include: { forgotten: true } });
   expect(all.memories!.find((m) => m.memory.includes("dentist"))?.isForgotten).toBe(true);
@@ -225,7 +229,7 @@ test("chat streams context + reply over SSE and saves the conversation as memory
 
 test("an expiry at or before the document date is ignored (lasting fact stays live)", async () => {
   await add("Alex moved from Pune to Berlin last year.", { date: "2026-03-01T09:00:00Z" });
-  const { sweep } = await import("../src/forget");
+  const { sweep } = await import("../src/lifecycle");
   await sweep();
   const list = await client.list(NS, "memories", {});
   expect(list.memories!.some((m) => m.memory.includes("Pune"))).toBe(true);

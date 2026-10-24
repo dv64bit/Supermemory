@@ -4,16 +4,21 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 ## Current state (2026-10-24)
 
-- **Phase:** P2 is code-complete: database migrations, audit tables and the secret guard. It is waiting for the owner to commit and push. P1 is done (`docs/v2/BASELINE.md`).
-- **Tests:** E1 has 57 passing, 0 unexpected failures, 16 todos and 11 open targets. The secret-redaction target is now fixed. Web 1/1.
+- **Phase:** P3 (Dreamer v2) code is done and all tests pass. It waits for:
+  1. the real-model E2 run, to check that it beats `BASELINE.md`;
+  2. the owner's commit.
+- **Tests:** E1 has 80 passing, 0 unexpected failures, 4 todos (P4/P6) and 6 open targets (P4). Web 1/1.
+- **Blocker:** Ollama is too slow on this machine right now. WSL has 4.9 GB of RAM, the model needs about 3.1 GB, and the machine is swapping. See DEVLOG 2026-10-24.
 - **LLM:** local Ollama with `qwen3:4b-instruct`, CPU only. No paid APIs.
 - **Eval/test database:** local role `supermem`; the URLs are in `server/.env` (git-ignored).
-- **Owner's own database:** the next server start upgrades it automatically. The upgrade only adds columns and tables. `bun run db:rollback 2` undoes it.
 
 ## Next
 
-- **P3, Dreamer v2 (D0–D9) and lifecycle config.** The inputs are in BASELINE.md "Findings". New input from P2: the near-duplicate shortcut reads a neighbour's similarity to the *first* candidate that found it, so a true duplicate can miss the shortcut when it isn't the first candidate in the unit.
-- **After P3:** re-run E2 and compare with `bun run eval:compare`.
+- **Once Ollama is fast again:**
+  1. Run `cd server && LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=qwen3:4b-instruct bun run eval:e2`.
+  2. Run `bun run eval:compare` to compare against the P1 baseline runs.
+  3. Tune `extract.v2` / `relate.v2` / `ground.v1` if a metric regressed, then record the P3 numbers in BASELINE.md.
+- **Then P4:** Retrieval v2, `x/context` (which also carries the D9 profile, DEFERRED #3, and the sensitive filter for chat), `as_of`, the latency budget, and the v5 mismatches.
 
 ## Standing decisions
 

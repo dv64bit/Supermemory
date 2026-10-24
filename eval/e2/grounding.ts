@@ -1,8 +1,9 @@
-// E2 grounding, two parts:
+// E2 grounding, three parts:
 //   A. judge check: the LLM judge on data/grounding.v1.json's labelled (source, claim) pairs. Its accuracy tells us
-//      how far to trust part B (and is the baseline the P3 grounder must beat).
-//   B. unsupported-memory rate: every fact the current extractor produces on data/extraction.v1.json, judged against
-//      its source. The engine has no grounding step yet, so this is the rate at which unsupported memories get stored.
+//      how far to trust part B.
+//   B. unsupported-memory rate: every fact that survives the engine's extract + ground steps on data/extraction.v1.json
+//      (what would be stored), judged against its source.
+//   C. the engine's own grounder (D2's LLM check, ground.v1) on the same labelled pairs, one claim per call.
 import { mean, ROOT, type Metrics } from "../lib";
 import { extractAll, loadExtractionData } from "./extraction";
 
@@ -38,13 +39,27 @@ export async function runGrounding() {
     }
   }
   const judgedB = b.filter((r) => r.supported !== null);
+
+  // C. the engine's grounder on labelled pairs (no extractor quote here, so only its LLM check is measured)
+  const groundSchema = {
+    type: "object", additionalProperties: false, required: ["verdicts"],
+    properties: { verdicts: { type: "array", items: { type: "object", additionalProperties: false, required: ["i", "verdict"],
+      properties: { i: { type: "integer" }, verdict: { type: "string", enum: ["supported", "unsupported"] } } } } },
+  };
+  const c = [];
+  for (const p of pairs.pairs) {
+    const v = await call<{ verdicts: { i: number; verdict: string }[] }>("ground", "ground.v1", { source: p.source, claims: [{ i: 0, claim: p.claim }] }, groundSchema)
+      .then((r) => r.verdicts.find((x) => x.i === 0), () => undefined);
+    c.push({ id: p.id, gold: p.supported, pred: v ? v.verdict === "supported" : null });
+  }
+  const answeredC = c.filter((r) => r.pred !== null);
   const groups: Record<string, Metrics> = {};
   for (const c of [...new Set(judgedB.map((r) => r.category))].sort()) {
     const rows = judgedB.filter((r) => r.category === c);
     groups[`extracted:${c}`] = { n: rows.length, unsupported_rate: mean(rows.map((r) => (r.supported ? 0 : 1))) };
   }
   return {
-    config: { judge_set: `grounding.v${pairs.version}`, pairs: pairs.pairs.length, extraction_set: `extraction.v${data.version}`, prompt: "judge-support.v1" },
+    config: { judge_set: `grounding.v${pairs.version}`, pairs: pairs.pairs.length, extraction_set: `extraction.v${data.version}`, prompt: "judge-support.v1", grounder_prompt: "ground.v1" },
     metrics: {
       judge_accuracy: mean(answered.map((r) => (r.pred === r.gold ? 1 : 0))),
       judge_unsupported_recall: goldUnsupported.length ? goldUnsupported.filter((r) => r.pred === false).length / goldUnsupported.length : 0,
@@ -53,8 +68,11 @@ export async function runGrounding() {
       extracted_facts: b.length,
       unsupported_memory_rate: judgedB.length ? mean(judgedB.map((r) => (r.supported ? 0 : 1))) : 0,
       unjudged_facts: b.length - judgedB.length,
+      grounder_accuracy: mean(answeredC.map((r) => (r.pred === r.gold ? 1 : 0))),
+      grounder_unsupported_recall: (() => { const g = answeredC.filter((r) => !r.gold); return g.length ? g.filter((r) => r.pred === false).length / g.length : 0; })(),
+      grounder_errors: c.length - answeredC.length,
     },
     groups,
-    details: { judge: a, extracted: b },
+    details: { judge: a, extracted: b, grounder: c },
   };
 }

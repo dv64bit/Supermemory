@@ -32,6 +32,27 @@ Things we have decided to skip for now and must come back to. Each entry says wh
 - **Until then:** quality is measured by E2 (extraction, relation, grounding, retrieval) only. There is no end-to-end QA accuracy number, and no "≥ Supermemory" claim can be made.
 - **When:** Once local Ollama is running and E2 has a real-model baseline; at the latest before the oracle benchmark (#1).
 
+### 3. D9: incremental LLM profile
+
+- **Added:** 2026-10-24 (P3)
+- **What:** PLAN.v2 §3 D9: after each dream, update only the affected profile sections with an LLM (`profile` role).
+- **Why deferred:** The profile is still built from live memories on every read, with no LLM, and that already reflects every change Dreamer v2 makes. An LLM rollup adds a call per dream on a CPU-only model. It belongs with `x/context` (token-budgeted context assembly) in P4, where we can measure whether a summary beats the raw list.
+- **When:** P4.
+
+### 4. Conversation debounce (idle 120 s / end marker)
+
+- **Added:** 2026-10-24 (P3)
+- **What:** PLAN.v2 §3: wait until a conversation has been idle for 120 s (or an end marker arrives) before dreaming it.
+- **Why deferred:** The problem it solved, re-extracting a whole chat on every turn, is fixed differently. An append-only re-ingest now dreams only the new text, with the last already-dreamed turn as context (`dream.ts` `unitOf`). Debounce would add latency to every chat-derived memory for no measured gain.
+- **When:** Revisit if E2/E3 show facts split across turns being lost (e.g. a confirmation two turns after the suggestion).
+
+### 5. Entity resolution: LLM tie-break
+
+- **Added:** 2026-10-24 (P3)
+- **What:** PLAN.v2 §3 D3: for ambiguous entity names, ask the LLM which existing entity is meant.
+- **Why deferred:** D3 does exact/alias match, then embedding match (≥ 0.9, same type). There is no labelled entity set to show where that fails, and every LLM call costs seconds on the CPU model.
+- **When:** When an entity eval set exists (P4, alongside the entity retrieval channel).
+
 ## Done
 
 (none yet)

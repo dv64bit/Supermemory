@@ -7,7 +7,7 @@ import { z } from "zod";
 import { sql } from "./db";
 import { redact } from "./guard";
 
-export type Role = "extract" | "relate" | "derive" | "forget" | "chat" | "judge"; // judge: evals only
+export type Role = "extract" | "ground" | "relate" | "derive" | "forget" | "chat" | "judge"; // judge: evals only
 type Schema = Record<string, unknown>;
 
 const base = () => process.env.LLM_BASE_URL ?? "http://localhost:11434/v1";
@@ -15,6 +15,10 @@ const base = () => process.env.LLM_BASE_URL ?? "http://localhost:11434/v1";
 export const modelFor = (role: Role) =>
   process.env[`LLM_MODEL_${role.toUpperCase()}`] ?? (role === "chat" ? process.env.LLM_CHAT_MODEL : undefined) ?? process.env.LLM_MODEL ?? "qwen3:8b";
 const timeoutMs = () => Number(process.env.LLM_TIMEOUT_MS ?? 300_000);
+// Output cap per role (LLM_MAX_TOKENS_<ROLE> overrides): a small model stuck repeating itself under a JSON grammar
+// would otherwise run until the context is full. A truncated reply fails validation and gets the repair retry.
+const MAX_TOKENS: Record<Role, number> = { extract: 2500, ground: 600, relate: 800, derive: 500, forget: 400, chat: 2000, judge: 800 };
+const maxTokens = (role: Role) => Number(process.env[`LLM_MAX_TOKENS_${role.toUpperCase()}`] ?? MAX_TOKENS[role]);
 const cacheOn = () => process.env.LLM_CACHE !== "off";
 const sha256 = (s: string) => new Bun.CryptoHasher("sha256").update(s).digest("hex");
 
@@ -35,7 +39,7 @@ export function prompt(name: string) {
 /** Identifies the prompts + models that produce memories. Changes whenever either does. */
 export function pipelineVersion() {
   const names = readdirSync(PROMPT_DIR).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
-  const roles: Role[] = ["extract", "relate", "derive", "forget"];
+  const roles: Role[] = ["extract", "ground", "relate", "derive", "forget"];
   return sha256(JSON.stringify([names.map((n) => prompt(n).version), roles.map(modelFor)])).slice(0, 12);
 }
 
@@ -56,6 +60,7 @@ type Usage = { in: number; out: number };
 async function post(role: Role, body: Record<string, unknown>, signal?: AbortSignal) {
   return fetch(`${base()}/chat/completions`, {
     method: "POST",
+    timeout: false, // Bun's own fetch timeout (5 min) would cut slow CPU-bound models short; LLM_TIMEOUT_MS applies instead
     signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(timeoutMs())]) : AbortSignal.timeout(timeoutMs()),
     headers: {
       "content-type": "application/json",
@@ -109,6 +114,7 @@ export async function call<T>(role: Role, promptName: string, input: unknown, sc
     const res = await post(role, {
       model,
       temperature: 0,
+      max_tokens: maxTokens(role),
       reasoning_effort: "none", // skip hidden thinking on reasoning models; ignored by others
       messages,
       response_format: { type: "json_schema", json_schema: { name: "out", schema, strict: true } },
@@ -152,7 +158,7 @@ export async function* stream(role: "chat", messages: ChatMessage[], signal?: Ab
   let ok = false;
   let error: string | undefined;
   try {
-    const res = await post(role, { model, stream: true, reasoning_effort: "none", messages }, signal);
+    const res = await post(role, { model, stream: true, max_tokens: maxTokens(role), reasoning_effort: "none", messages }, signal);
     if (!res.ok || !res.body) throw new LlmError(`llm ${res.status}: ${(await res.text()).slice(0, 300)}`);
     let buf = "";
     let inThink = false;

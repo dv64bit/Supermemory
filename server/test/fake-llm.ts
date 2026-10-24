@@ -1,9 +1,19 @@
 // Fake OpenAI-compatible /chat/completions. Routes on the router's `x-llm-role` header (never on prompt wording)
 // and hands the parsed user JSON to a scripted handler. Deterministic engine tests, no model needed.
 // Every request is recorded in `requests`, so tests can assert on exactly what the model was sent.
+// Extract handlers return the fields they care about; the rest get schema-valid defaults (speaker user, the whole
+// content as the quote, so grounding finds it). Relate handlers may answer with a v2 op or the older relation names.
+type ExtractOut = {
+  content: string; kind: string; expiresAt: string | null; bucket?: string | null; speaker?: string; subject?: string | null;
+  slot?: string | null; entities?: { name: string; type: string; aliases: string[] }[]; validFrom?: string | null;
+  sensitivity?: string; confidence?: number; quote?: string;
+};
+type RelateOut = { op: string; target: number | null; confidence?: number } | { relation: string; target: number | null; confidence?: number };
 type Handlers = {
-  extract?: (input: { content: string; documentDate: string; buckets?: Record<string, string> }) => { content: string; kind: string; expiresAt: string | null; bucket?: string | null }[];
-  relate?: (c: { i: number; content: string; neighbors: { j: number; content: string }[] }) => { relation: string; target: number | null };
+  extract?: (input: { content: string; context: string | null; documentDate: string; buckets?: Record<string, string> }) => ExtractOut[];
+  relate?: (c: { i: number; content: string; speaker: string; subject: string | null; neighbors: { j: number; content: string; speaker: string | null }[] }) => RelateOut;
+  /** Grounding verdict per claim; default supported. */
+  ground?: (claim: { i: number; claim: string; quote: string }, source: string) => "supported" | "unsupported";
   derive?: (memories: { j: number; content: string }[]) => { content: string; from: number[] }[];
   forget?: (input: { request: string; candidates: { j: number; content: string }[] }) => number[];
   chat?: (messages: { role: string; content: string }[]) => string;
@@ -41,8 +51,19 @@ export function startFakeLlm(h: Handlers = {}) {
       let out: unknown;
       if (role === "extract") {
         // A schema-following model always emits every required key; mirror that for the optional bucket.
-        out = { memories: (h.extract?.(input) ?? []).map((m) => (input.buckets ? { bucket: null, ...m } : m)) };
-      } else if (role === "relate") out = { decisions: input.candidates.map((c: any) => ({ i: c.i, ...(h.relate?.(c) ?? { relation: "new", target: null }) })) };
+        out = { memories: (h.extract?.(input) ?? []).map((m) => ({
+          speaker: "user", subject: null, slot: null, entities: [], validFrom: null, sensitivity: "none", confidence: 0.9, quote: input.content,
+          ...(input.buckets && { bucket: null }), ...m,
+        })) };
+      } else if (role === "ground") {
+        out = { verdicts: input.claims.map((c: any) => ({ i: c.i, verdict: h.ground?.(c, input.source) ?? "supported" })) };
+      } else if (role === "relate") {
+        const OLD: Record<string, string> = { new: "ADD", duplicate: "DUPLICATE", updates: "UPDATE", extends: "EXTEND" };
+        out = { decisions: input.candidates.map((c: any) => {
+          const d: any = h.relate?.(c) ?? { op: "ADD", target: null };
+          return { i: c.i, op: d.op ?? OLD[d.relation], target: d.target, confidence: d.confidence ?? 0.9 };
+        }) };
+      }
       else if (role === "derive") out = { inferences: h.derive?.(input.memories) ?? [] };
       else if (role === "forget") out = { forget: h.forget?.(input) ?? [] };
       else if (role === "judge" && h.judge) out = h.judge(input, body.messages[0].content.match(/^TASK: (\S+)/)?.[1] ?? "");

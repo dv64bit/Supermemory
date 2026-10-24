@@ -1,24 +1,23 @@
-// E2 relation: for each case of data/relation.v1.json, store the existing memories in their own namespace, then run
-// the engine's relation step (dream.ts relateCandidates: neighbour search, near-duplicate shortcut, relate LLM call)
-// on the candidate. Scores the decision against the v2 label; the headline is the false-UPDATE rate.
+// E2 relation: for each case of data/relation.v1.json, store the existing memories (with their event dates) in their own
+// namespace, then run the engine's relate steps (relator.ts: D4 neighbours, D5 relate call, D6 policy) on the candidate.
+// Scores the final op against the v2 label; the headline is the false-UPDATE rate.
+// The data has no speakers, so the candidate is a neutral "document" statement; hearsay must be read from its wording.
 import { mean, ROOT, type Metrics } from "../lib";
 
-type Op = "ADD" | "DUPLICATE" | "UPDATE" | "EXTEND" | "CONFLICT" | "HISTORICAL";
+type Op = "ADD" | "DUPLICATE" | "UPDATE" | "EXTEND" | "CONFLICT" | "HISTORICAL" | "SKIP";
 type Case = {
   id: string; category: string; existing: { key: string; content: string; date?: string }[];
   candidate: string; candidateDate?: string; expected: { op: Op; target: string | null };
 };
-const ENGINE_TO_OP: Record<string, Op> = { new: "ADD", duplicate: "DUPLICATE", updates: "UPDATE", extends: "EXTEND" };
-const DUPLICATE_SIM = 0.92; // mirrors dream.ts, only to label which path decided
 
 export async function runRelation() {
   const data: { version: number; cases: Case[] } = await Bun.file(`${ROOT}/eval/data/relation.v1.json`).json();
   const { sql, toVector } = await import("../../server/src/db"); // eval:e2 created and migrated the database
   const { embed } = await import("../../server/src/embed");
-  const { relateCandidates } = await import("../../server/src/dream");
+  const { relate } = await import("../../server/src/relator");
 
   type Row = { id: string; category: string; gold: Op; goldTarget: string | null; pred: Op; predTarget: string | null;
-    path: string; error?: string; correct: number; falseUpdate: number };
+    path: string; reason?: string; error?: string; correct: number; falseUpdate: number };
   const per: Row[] = [];
   for (const c of data.cases) {
     const ns = `eval_rel_${c.id}`;
@@ -26,25 +25,29 @@ export async function runRelation() {
     const vecs = await embed([...c.existing.map((e) => e.content), c.candidate]);
     const keyOfPk = new Map<number, string>();
     for (const [i, e] of c.existing.entries()) {
-      const [m] = await sql`insert into memories (ns, content, kind, embedding) values (${ns}, ${e.content}, 'fact', ${toVector(vecs[i])}::vector) returning pk`;
+      const [m] = await sql`insert into memories (ns, content, kind, embedding, valid_from)
+        values (${ns}, ${e.content}, 'fact', ${toVector(vecs[i])}::vector, ${e.date ? new Date(e.date) : null}) returning pk`;
       keyOfPk.set(m.pk, e.key);
     }
-    let op: Op = "ADD", target: string | null = null, path = "no-neighbour", error: string | undefined;
+    let op: Op = "ADD", target: string | null = null, path = "none", reason: string | undefined, error: string | undefined;
     try {
-      const { neighbors, candNeighbors, decisions } = await relateCandidates(ns, [{ content: c.candidate }], [vecs.at(-1)!]);
-      const d = decisions.get(0);
-      const top = candNeighbors[0].length ? neighbors[candNeighbors[0][0]] : undefined;
-      path = !top ? "no-neighbour" : top.sim >= DUPLICATE_SIM ? "shortcut" : "llm";
-      if (d) {
-        op = ENGINE_TO_OP[d.relation] ?? "ADD";
-        target = d.target !== null ? keyOfPk.get(neighbors[d.target].pk) ?? null : null;
-      }
+      const cand = {
+        content: c.candidate, kind: "fact" as const, speaker: "document" as const, subject: null, slot: null, entities: [],
+        validFrom: c.candidateDate ?? null, expiresAt: null, sensitivity: "none" as const, confidence: 1, quote: c.candidate,
+      };
+      const docDate = c.candidateDate ? new Date(c.candidateDate) : new Date();
+      const { neighbors, plans } = await relate(ns, [cand], [vecs.at(-1)!], [{ subject: null, mentions: [] }], docDate);
+      const p = plans[0];
+      op = p.op;
+      path = p.path;
+      reason = p.reason;
+      target = p.target !== null ? keyOfPk.get(neighbors[p.target].pk) ?? null : null;
     } catch (e) {
       error = String((e as Error).message);
     }
     const g = c.expected;
     per.push({
-      id: c.id, category: c.category, gold: g.op, goldTarget: g.target, pred: op, predTarget: target, path, error,
+      id: c.id, category: c.category, gold: g.op, goldTarget: g.target, pred: op, predTarget: target, path, reason, error,
       correct: op === g.op && (g.op === "ADD" || target === g.target) ? 1 : 0,
       falseUpdate: op === "UPDATE" && g.op !== "UPDATE" ? 1 : 0,
     });
@@ -67,16 +70,14 @@ export async function runRelation() {
   for (const cat of [...new Set(per.map((r) => r.category))].sort()) byCategory[cat] = agg(per.filter((r) => r.category === cat));
   return {
     config: {
-      dataset: `relation.v${data.version}`, cases: data.cases.length, prompt: "relate.v1",
-      note: "engine has no CONFLICT/HISTORICAL ops and ignores dates; those cases can only be 'safe' (not UPDATE) or a false UPDATE",
+      dataset: `relation.v${data.version}`, cases: data.cases.length, prompt: "relate.v2", policy: "relator.ts D6",
     },
     metrics: {
       ...agg(per),
-      accuracy_engine_classes: mean(per.filter((r) => !["CONFLICT", "HISTORICAL"].includes(r.gold)).map((r) => r.correct)),
       missed_update_rate: share(updates, (r) => r.pred !== "UPDATE"),
       update_swallowed_as_duplicate: share(updates, (r) => r.pred === "DUPLICATE"),
-      missed_link_rate: share(linked, (r) => r.path === "no-neighbour"),
-      decided_by_shortcut: per.filter((r) => r.path === "shortcut").length,
+      missed_link_rate: share(linked, (r) => r.path === "none"),
+      decided_without_llm: per.filter((r) => r.path === "exact").length,
       relate_errors: per.filter((r) => r.error).length,
     },
     groups: { ...byGold, ...byCategory },

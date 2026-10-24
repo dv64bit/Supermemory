@@ -16,7 +16,8 @@ export async function buckets(ns: string): Promise<Record<string, string>> {
 }
 
 /**
- * Profile straight from live memories, no LLM on the read path:
+ * Profile straight from live memories, no LLM on the read path. Sensitive memories are left out unless the
+ * namespace allows injecting them (PATCH /ns/{ns}/x/settings {injectSensitive}).
  *  static  = durable facts and preferences (strongest first)
  *  dynamic = episodes and facts that changed recently (current state)
  * ponytail: no "aggregated_" summaries; add an LLM rollup per bucket if lists get long.
@@ -27,6 +28,7 @@ export async function profile(ns: string, filter?: Filter) {
   const rows = (await sql.unsafe(
     `select m.id, m.content, m.kind, m.bucket, m.version, m.strength, m.updated_at from memories m
      where m.ns = $1 and ${LIVE()} and not m.is_inference ${where}
+       and (m.sensitivity is distinct from 'sensitive' or (select inject_sensitive from namespaces where id = $1))
      order by m.strength desc, m.updated_at desc`,
     params,
   )) as any[];

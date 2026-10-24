@@ -1,0 +1,20 @@
+# Memory lifecycle per kind (PLAN.v2 §3). Starting values: tune them with the evals, not by guessing.
+# LIFECYCLE_FILE points at another copy.
+fact:
+  # Facts never decay. They end only when superseded, when their document is deleted or edited, or at an explicit expiry.
+  decay: false
+preference:
+  # Each duplicate adds 1 to strength, up to the cap. Ranking uses log1p(strength).
+  strength_cap: 10
+episode:
+  # score = significance * 0.5 ^ (days since last reinforced / half_life_days)
+  # significance = min(1, base_significance + per_reinforcement * (strength - 1))
+  half_life_days: 30
+  base_significance: 0.5
+  per_reinforcement: 0.2
+  # Soft-forget below this score, unless significance is at least keep_if_significance.
+  forget_below: 0.05
+  keep_if_significance: 0.8
+relate:
+  # An UPDATE below this confidence does not supersede: it becomes a conflict review item. RELATE_UPDATE_MIN overrides.
+  update_min_confidence: 0.75

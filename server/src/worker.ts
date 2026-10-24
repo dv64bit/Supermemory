@@ -3,13 +3,13 @@ import { extract } from "./extract";
 import { chunk } from "./chunk";
 import { embed, EMBED_MODEL } from "./embed";
 import { dream } from "./dream";
-import { sweep } from "./forget";
+import { sweep } from "./lifecycle";
 import { redact } from "./guard";
 
 const BUSY = ["extracting", "chunking", "embedding", "indexing"];
 
-// Claim the oldest queued document whose namespace has nothing in flight:
-// ingest is serialized per namespace because order decides which fact "came first".
+// Claim the queued document earliest in event time (its date, else when it arrived) whose namespace has nothing in
+// flight: ingest is serialised per namespace, and dreaming in event order keeps supersedes in the right direction.
 async function claim() {
   const [doc] = await sql`
     update documents set status = 'extracting', error = null, updated_at = now()
@@ -17,7 +17,7 @@ async function claim() {
       select d.pk from documents d
       where d.status = 'queued'
         and not exists (select 1 from documents x where x.ns = d.ns and (x.status in ${sql(BUSY)} or x.dreaming_status = 'dreaming'))
-      order by d.created_at
+      order by coalesce(d.doc_date, d.created_at), d.created_at
       limit 1
       for update skip locked
     )

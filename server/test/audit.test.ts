@@ -8,7 +8,6 @@ const AWS = ["AKIA", "Z7QK2M4N6P8R0T3V"].join(""); // assembled at runtime (GitH
 const llm = startFakeLlm({
   extract: ({ content }) => {
     if (content.includes("AUDIT-1")) return [{ content: "Ana lives in Lisbon", kind: "fact", expiresAt: null }, { content: "Ana likes surfing", kind: "preference", expiresAt: null }];
-    // Duplicate first: the engine's near-duplicate shortcut reads a neighbour's similarity to the first candidate that found it.
     if (content.includes("AUDIT-2")) return [{ content: "Ana likes surfing", kind: "preference", expiresAt: null }, { content: "Ana lives in Porto", kind: "fact", expiresAt: null }];
     if (content.includes("AUDIT-KEY")) return [{ content: `Ana's AWS key is ${content.match(/key (\S+)/)?.[1]}`, kind: "fact", expiresAt: null }];
     return [];
@@ -70,7 +69,7 @@ test("each dream is a dream_run; its LLM calls and memory events point at it", a
     from memories where content = 'Ana lives in Lisbon'`;
   expect(lisbon.valid_from.toISOString()).toBe("2026-01-10T00:00:00.000Z");
   expect(lisbon.valid_to.toISOString()).toBe("2026-06-01T00:00:00.000Z");
-  expect(lisbon).toMatchObject({ speaker: "document", pipeline_version: runs[0].pipeline_version, dream_run_id: runs[0].id, embedding_model: "Xenova/bge-base-en-v1.5" });
+  expect(lisbon).toMatchObject({ speaker: "user", pipeline_version: runs[0].pipeline_version, dream_run_id: runs[0].id, embedding_model: "Xenova/bge-base-en-v1.5" });
   const [inf] = await sql`select status from memories where content = 'Ana lives near the sea'`;
   expect(inf.status).toBe("pending_review");
 }, 60_000); // first test in the file loads the embedding model
