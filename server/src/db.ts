@@ -1,7 +1,8 @@
 import { SQL } from "bun";
 import { readdirSync } from "node:fs";
 
-export const sql = new SQL(process.env.DATABASE_URL ?? "postgres://localhost/supermem");
+const url = () => process.env.DATABASE_URL ?? "postgres://localhost/supermem";
+export const sql = new SQL(url());
 
 export const toVector = (v: number[]) => `[${v.join(",")}]`;
 
@@ -21,15 +22,29 @@ const checksum = async (path: string) => new Bun.CryptoHasher("sha256").update(a
 // Serialises concurrent runners (two servers, or tests sharing a database) for the length of one transaction.
 const LOCK = 6767_0001;
 
-async function applied() {
+/**
+ * Migrations run on a client of their own, closed afterwards. With the multi-statement migration files run on the shared
+ * pool, about 1 load in 6 then stored rows with an earlier statement's parameters (Bun 1.3.5); with this, 0 in 12.
+ * Root cause not confirmed (DEVLOG 2026-11-25).
+ */
+async function withMigrationClient<T>(f: (db: SQL) => Promise<T>): Promise<T> {
+  const db = new SQL(url(), { max: 1 });
+  try {
+    return await f(db);
+  } finally {
+    await db.close();
+  }
+}
+
+async function applied(sql: SQL) {
   await sql`create table if not exists schema_migrations (
     version int primary key, name text not null, checksum text not null, applied_at timestamptz not null default now())`;
   return (await sql`select version, name, checksum from schema_migrations order by version`) as { version: number; name: string; checksum: string }[];
 }
 
 /** Applies pending migrations in order, each in its own transaction. `to` stops after that version. */
-export async function migrate(opts: { to?: number } = {}) {
-  const done = new Map((await applied()).map((r) => [r.version, r]));
+export const migrate = (opts: { to?: number } = {}) => withMigrationClient(async (sql) => {
+  const done = new Map((await applied(sql)).map((r) => [r.version, r]));
   const ran: string[] = [];
   for (const m of migrations()) {
     if (opts.to !== undefined && m.version > opts.to) break;
@@ -49,13 +64,13 @@ export async function migrate(opts: { to?: number } = {}) {
     ran.push(`${m.version}_${m.name}`);
   }
   return ran;
-}
+});
 
 /** Development only: undoes the last `steps` applied migrations, newest first. */
-export async function rollback(steps = 1) {
+export const rollback = (steps = 1) => withMigrationClient(async (sql) => {
   const all = new Map(migrations().map((m) => [m.version, m]));
   const undone: string[] = [];
-  for (const r of (await applied()).reverse().slice(0, steps)) {
+  for (const r of (await applied(sql)).reverse().slice(0, steps)) {
     const m = all.get(r.version);
     if (!m) throw new Error(`no files for applied migration ${r.version}_${r.name}`);
     await sql.begin(async (tx) => {
@@ -66,9 +81,9 @@ export async function rollback(steps = 1) {
     undone.push(`${m.version}_${m.name}`);
   }
   return undone;
-}
+});
 
-export async function migrationStatus() {
-  const done = new Map((await applied()).map((r) => [r.version, r]));
+export const migrationStatus = () => withMigrationClient(async (sql) => {
+  const done = new Map((await applied(sql)).map((r) => [r.version, r]));
   return migrations().map((m) => ({ version: m.version, name: m.name, applied: done.has(m.version) }));
-}
+});

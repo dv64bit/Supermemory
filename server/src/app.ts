@@ -3,6 +3,7 @@ import { z, ZodError } from "zod";
 import { sql, toVector } from "./db";
 import { embed } from "./embed";
 import { search } from "./search";
+import { assembleContext } from "./context";
 import { compileFilter, filterSchema } from "./filter";
 import { LIVE, memoryJson, related } from "./memories";
 import { buckets, BUILTIN_BUCKETS, profile } from "./profile";
@@ -213,8 +214,29 @@ export function createApp(apiKey: string) {
   app.post("/ns/:namespace/search", async (c) => {
     const n = ns(c);
     const body = searchBody.parse(await c.req.json());
-    // ponytail: rerank / rewriteQuery accepted and ignored until phase 2 adds the reranker + LLM.
+    // ponytail: rerank / rewriteQuery accepted and ignored (DEFERRED: cross-encoder rerank, LLM query rewrite).
     return c.json(await search(n, body));
+  });
+
+  // v5 search plus time travel: `asOf` = what was valid then (valid_from <= t < valid_to); `history` = also search
+  // superseded versions. Temporal questions ("before", "used to", "in 2025") turn history on by themselves.
+  app.post("/ns/:namespace/x/search", async (c) => {
+    const n = ns(c);
+    const body = searchBody.extend({ asOf: z.string().datetime({ offset: true }).optional(), history: z.boolean().optional() }).strict()
+      .parse(await c.req.json());
+    return c.json(await search(n, { ...body, asOf: body.asOf ? new Date(body.asOf) : undefined }));
+  });
+
+  // Ready-to-inject context block under a token budget (PLAN.v2 §4.7): profile, relevant memories, document chunks.
+  app.post("/ns/:namespace/x/context", async (c) => {
+    const n = ns(c);
+    const body = z.object({
+      query: z.string().min(1).max(10_000).optional(),
+      budgetTokens: z.number().int().min(50).max(32_000).default(1500),
+      asOf: z.string().datetime({ offset: true }).optional(),
+      threshold: z.number().min(0).max(1).optional(),
+    }).strict().parse(await c.req.json().catch(() => ({})));
+    return c.json(await assembleContext(n, { ...body, asOf: body.asOf ? new Date(body.asOf) : undefined }));
   });
 
   app.get("/ns/:namespace/memories/:id", async (c) => {
@@ -226,7 +248,7 @@ export function createApp(apiKey: string) {
     const out: Record<string, any> = memoryJson(m);
     const included: Record<string, unknown> = {};
     if (!include.length || include.includes("related")) included.related = (await related([m.pk], limit)).get(m.pk);
-    if ((!include.length || include.includes("document")) && m.source_document_pk) {
+    if ((!include.length || include.includes("documents") || include.includes("document")) && m.source_document_pk) {
       const [d] = await sql`select * from documents where pk = ${m.source_document_pk}`;
       if (d) included.document = { id: d.id, title: d.title, type: d.type, metadata: d.metadata, summary: null,
         system: { createdAt: iso(d.created_at), updatedAt: iso(d.updated_at) } };
@@ -280,10 +302,12 @@ export function createApp(apiKey: string) {
     return c.json(memoryJson(m));
   });
 
+  const bucketSlug = z.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9_-]*$/);
   app.post("/ns/:namespace/profile", async (c) => {
     const n = ns(c);
-    const body = z.object({ filter: filterSchema.optional() }).strict().parse(await c.req.json().catch(() => ({})));
-    return c.json(await profile(n, body.filter));
+    const body = z.object({ filter: filterSchema.optional(), buckets: z.array(bucketSlug).max(50).optional() }).strict()
+      .parse(await c.req.json().catch(() => ({})));
+    return c.json(await profile(n, body.filter, body.buckets));
   });
 
   const bucketName = z.string().min(1).max(64).regex(/^[a-z0-9_-]+$/);
@@ -311,6 +335,7 @@ export function createApp(apiKey: string) {
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(1100).default(10),
     order: z.enum(["asc", "desc"]).default("desc"),
+    sort: z.enum(["createdAt", "updatedAt", "position"]).default("createdAt"),
   });
   const listBody = z.object({
     filter: filterSchema.optional(),
@@ -325,31 +350,36 @@ export function createApp(apiKey: string) {
     const params: unknown[] = [n, q.limit, (q.page - 1) * q.limit];
     const where = body.filter ? `and ${compileFilter(body.filter, "d.metadata", params)}` : "";
     const dir = q.order === "asc" ? "asc" : "desc";
+    if (q.sort === "position" && type !== "chunks") return c.json({ error: "sort=position is available only when listing chunks" }, 400);
+    const col = q.sort === "updatedAt" ? "updated_at" : "created_at";
+    // v5: every list response carries all three arrays; the ones not requested are empty.
+    const listed = (rest: Record<string, unknown>) => ({ documents: [], chunks: [], memories: [], ...rest });
     if (type === "memories") {
       const live = (body.include?.forgotten ? "m.is_latest" : LIVE()) + (c.req.query("inference") === "true" ? " and m.is_inference" : "");
       const rows = await sql.unsafe(`select m.*, count(*) over () as total from memories m where m.ns = $1 and ${live}
-        ${where.replaceAll("d.metadata", "m.metadata")} order by m.updated_at ${dir} limit $2 offset $3`, params);
-      return c.json({ memories: rows.map(memoryJson), pagination: page(q, Number(rows[0]?.total ?? 0)) });
+        ${where.replaceAll("d.metadata", "m.metadata")} order by m.${col} ${dir}, m.pk ${dir} limit $2 offset $3`, params);
+      return c.json(listed({ memories: rows.map(memoryJson), pagination: page(q, Number(rows[0]?.total ?? 0)) }));
     }
     if (type === "documents") {
       const rows = await sql.unsafe(`select d.*, count(*) over () as total,
           (select count(*)::int from memories m where m.source_document_pk = d.pk and ${LIVE()}) as memory_count
-        from documents d where d.ns = $1 ${where} order by d.created_at ${dir} limit $2 offset $3`, params);
-      return c.json({
+        from documents d where d.ns = $1 ${where} order by d.${col} ${dir}, d.pk ${dir} limit $2 offset $3`, params);
+      return c.json(listed({
         documents: rows.map((r: any) => ({ ...docJson(r, !!body.include?.content), system: { ...docJson(r).system, memoryCount: r.memory_count } })),
         pagination: page(q, Number(rows[0]?.total ?? 0)),
-      });
+      }));
     }
     const rows = await sql.unsafe(`select c.id, c.position, c.content, c.created_at, d.id as doc_id, d.metadata,
         count(*) over () as total from chunks c join documents d on d.pk = c.document_pk where c.ns = $1 ${where}
-        order by c.created_at ${dir}, c.position limit $2 offset $3`, params);
-    return c.json({
+        order by ${q.sort === "position" ? `d.pk ${dir}, c.position ${dir}` : `c.created_at ${dir}, c.position`} limit $2 offset $3`, params);
+    // Chunks are never edited, so updatedAt orders like createdAt.
+    return c.json(listed({
       chunks: rows.map((r: any) => ({
         id: String(r.id), position: r.position, content: r.content, type: "text", metadata: r.metadata,
         documentId: r.doc_id, system: { createdAt: iso(r.created_at) },
       })),
       pagination: page(q, Number(rows[0]?.total ?? 0)),
-    });
+    }));
   });
 
   const nsList = async (c: Context) => {

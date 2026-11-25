@@ -3,7 +3,6 @@
 import { beforeAll, afterAll, expect, test } from "bun:test";
 
 import { freshDb, startFakeLlm } from "./fake-llm";
-import { target } from "./targets";
 import { KNOWN_V5_MISMATCHES, specIssues, validatingFetch } from "./v5-schema";
 const llm = startFakeLlm(); // no memories extracted: this file covers documents/chunks only
 await freshDb("supermem_test_contract");
@@ -165,30 +164,36 @@ test("legacy v3/v4 shims used by the browser extension", async () => {
   const search = await req("/v4/search", { q: "extension", containerTag: "sm_project_ext", include: { relatedMemories: true } });
   expect(search.status).toBe(200);
   expect(Array.isArray(search.body.results)).toBe(true); // fake LLM forms no memories here; shape is what matters
+
+  const profile = await req("/v4/profile", { containerTag: "sm_project_ext", q: "extension" });
+  expect(profile.status).toBe(200);
+  expect(profile.body).toMatchObject({ profile: { static: [], dynamic: [], buckets: { preferences: [] } }, searchResults: { results: [], total: 0 } });
+  const onlyBuckets = await req("/v4/profile", { containerTag: "sm_project_ext", include: ["buckets"] });
+  expect(onlyBuckets.body).toEqual({ profile: { buckets: { preferences: [] } } });
 });
 
-// Known v5 deviations from the P0 audit (GAP_REPORT §3), scheduled for P4. `target` (see ./targets.ts) passes while the
-// bug exists and turns red once it is fixed: then make it a plain `test` and drop its KNOWN_V5_MISMATCHES entry, if any.
+// v5 deviations from the P0 audit (GAP_REPORT §3), fixed in P4. `strict` validates every response against ref/v5.json
+// with no known-mismatch allowances.
 const strict = () => new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
 
-target("v5 mismatch (P4): chunk search results carry isLatest and isInference", async () => {
+test("v5 (fixed in P4): chunk search results carry isLatest and isInference", async () => {
   const res = await strict().search(NS, { query: "Seattle", searchMode: "chunks", threshold: 0 });
   expect(res.results.length).toBeGreaterThan(0);
 });
 
-target("v5 mismatch (P4): profile accepts a buckets selection", async () => {
+test("v5 (fixed in P4): profile accepts a buckets selection", async () => {
   const res = await client.profile(NS, { buckets: ["preferences"] });
   expect(res.profile.buckets).toHaveProperty("preferences");
 });
 
-target("v5 mismatch (P4): list honours sort=updatedAt", async () => {
+test("v5 (fixed in P4): list honours sort=updatedAt", async () => {
   await client.documents.update(NS, "note-1", { content: "# Travel\nAlex moved to Seattle. Edited." });
   await drain();
   const byUpdated = await client.list(NS, "documents", { sort: "updatedAt", order: "desc" });
   expect(byUpdated.documents?.[0].id).toBe("note-1"); // created first, updated last
 });
 
-target("v5 mismatch (P4): list responses carry documents, chunks and memories arrays", async () => {
+test("v5 (fixed in P4): list responses carry documents, chunks and memories arrays", async () => {
   const res = await strict().list(NS, "documents", {});
   expect(res.documents?.length).toBeGreaterThan(0);
 });

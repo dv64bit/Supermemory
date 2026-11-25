@@ -18,3 +18,25 @@ episode:
 relate:
   # An UPDATE below this confidence does not supersede: it becomes a conflict review item. RELATE_UPDATE_MIN overrides.
   update_min_confidence: 0.75
+retrieval:
+  # Memory ranking (retrieve.ts): score = rrf * kind * recency * strength * confidence * penalties. Tune with eval:e2 retrieval.
+  rrf_k: 60
+  # Weight of each channel in the fusion: sum(weight / (rrf_k + rank)). Keyword 0.2 is tuned on retrieval.v1:
+  # at 1 it lifts other people's facts that share a word with the query (recall@10 0.929 vs 0.955).
+  channels: { vector: 1, keyword: 0.2, entity: 1 }
+  kind: { fact: 1, preference: 1, episode: 1 }
+  # Episodes fade with lifecycle episode.half_life_days, never below this share of their score.
+  recency_floor: 0.5
+  # score *= 1 + strength_weight * log1p(strength - 1)
+  strength_weight: 0.1
+  # score *= 1 - confidence_weight * (1 - confidence)
+  confidence_weight: 0.3
+  # Inferences nobody approved yet rank below trusted facts.
+  unapproved_inference: 0.5
+  # A memory valid in the period the query names ("in March 2025").
+  period_boost: 1.5
+  # MMR trade-off: 1 = relevance only, lower = more diverse.
+  mmr_lambda: 0.8
+  # Drop a result this similar to a higher one, if both name the same numbers and names (paraphrases measured 0.90-0.94;
+  # distinct facts like "speaks Malayalam" / "speaks Hindi" 0.87).
+  collapse_above: 0.9

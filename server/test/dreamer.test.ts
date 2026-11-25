@@ -4,6 +4,8 @@ import { normName } from "../src/entities";
 import type { Candidate } from "../src/extractor";
 import { locate, RELATIVE_DATE, resolveDates } from "../src/grounder";
 import { policy, type Neighbor } from "../src/relator";
+import { sameSpecifics } from "../src/retrieve";
+import { understand } from "../src/query";
 
 test("locate finds a quote despite case, punctuation and a small slip; rejects one that isn't there", () => {
   const src = "User: Good call, I'll go with Postgres then.\n\nAssistant: Great choice!";
@@ -74,4 +76,21 @@ test("policy: one successor per memory; repeats in a unit are stored once; links
   );
   expect(plans.map((p) => p.op)).toEqual(["UPDATE", "EXTEND", "SKIP", "ADD"]);
   expect(plans[1].targetCand).toBe(0);
+});
+
+test("retrieval: paraphrases share their specifics; a changed number or name does not", () => {
+  expect(sameSpecifics("Alex loves hiking in the mountains", "Hiking in the mountains is Alex's favourite pastime")).toBe(true);
+  expect(sameSpecifics("Kim has 2 children", "Kim has 3 children")).toBe(false);
+  expect(sameSpecifics("The user's flight is AI-302", "The user's flight is AI-101")).toBe(false);
+  expect(sameSpecifics("The user speaks Malayalam", "The user speaks Hindi")).toBe(false);
+});
+
+test("query understanding: first person, history intent, periods and entity names", () => {
+  expect(understand("Which city do I live in?").text).toBe("Which city does the user live in?");
+  expect(understand("Where did I work before Northwind?")).toMatchObject({ history: true, names: ["northwind"] });
+  expect(understand("How old is my daughter?")).toMatchObject({ history: false, names: ["the user's daughter"] });
+  const q = understand("Where did I live in March 2025?");
+  expect(q.history).toBe(true);
+  expect(q.range).toEqual({ from: new Date("2025-03-01T00:00:00Z"), to: new Date("2025-04-01T00:00:00Z") });
+  expect(understand("When is the PyCon talk?").names).toEqual(["pycon"]);
 });

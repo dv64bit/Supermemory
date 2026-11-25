@@ -54,6 +54,26 @@ export function sentences(seed: number): () => string {
   return () => pick(t)();
 }
 
+/**
+ * The stored corpus must be exactly what was embedded: each text once, with its own vector. Two runs on 2026-11-25 got
+ * rows carrying another batch's text or vector (cause not found; DEVLOG 2026-11-25), which silently cut recall@10 to
+ * 0.86. A run on a corrupted load is refused rather than recorded.
+ */
+async function checkLoad(sql: typeof import("../../server/src/db").sql, ns: string, vecOf: Map<string, number[]>) {
+  const rows = (await sql`select content, embedding::text as e from memories where ns = ${ns}`) as { content: string; e: string }[];
+  const seen = new Set<string>();
+  const bad = rows.filter((r) => {
+    const want = vecOf.get(r.content);
+    if (!want || seen.has(r.content)) return true;
+    seen.add(r.content);
+    const got = r.e.slice(1, -1).split(",").map(Number);
+    return got.reduce((s, v, i) => s + v * want[i], 0) < 0.999;
+  });
+  if (bad.length || rows.length !== vecOf.size) {
+    throw new Error(`corpus load is corrupted: ${bad.length} of ${rows.length} rows have a duplicate text or another row's vector (expected ${vecOf.size} rows). Re-run.`);
+  }
+}
+
 export async function runRetrieval(opts: { distractorCount?: number } = {}) {
   const data: Dataset = await Bun.file(`${ROOT}/eval/data/retrieval.v1.json`).json();
   const distractorCount = opts.distractorCount ?? 1500;
@@ -65,9 +85,11 @@ export async function runRetrieval(opts: { distractorCount?: number } = {}) {
   await sql`insert into namespaces (id) values (${NS})`;
   const corpus = [...data.memories.map((m) => ({ key: m.key, content: m.content })), ...distractors(distractorCount).map((content, i) => ({ key: `d${i}`, content }))];
   const keyOf = new Map<string, string>();
+  const vecOf = new Map<string, number[]>();
   for (let i = 0; i < corpus.length; i += 64) {
     const batch = corpus.slice(i, i + 64);
     const vecs = await embed(batch.map((c) => c.content));
+    for (const [j, c] of batch.entries()) vecOf.set(c.content, vecs[j]);
     await sql.begin(async (tx) => {
       for (const [j, c] of batch.entries()) {
         const [row] = await tx`insert into memories (ns, content, kind, embedding) values (${NS}, ${c.content}, 'fact', ${toVector(vecs[j])}::vector) returning id`;
@@ -76,6 +98,8 @@ export async function runRetrieval(opts: { distractorCount?: number } = {}) {
       }
     });
   }
+
+  await checkLoad(sql, NS, vecOf);
 
   const app = createApp("eval");
   const search = async (query: string, threshold?: number) => {

@@ -5,7 +5,6 @@
 //   test.todo(...) : needs a feature that doesn't exist yet (speaker, confidence, pinned, as_of, ...); written in its phase.
 import { beforeAll, afterAll, expect, test } from "bun:test";
 import { freshDb, startFakeLlm } from "./fake-llm";
-import { target } from "./targets";
 
 const has = (s: string, ...w: string[]) => w.every((x) => s.toLowerCase().includes(x.toLowerCase()));
 // A fake OpenAI-style key, assembled at runtime so the source never holds a key-shaped literal
@@ -98,8 +97,30 @@ test("relative date ('tomorrow') is resolved to an absolute valid_from; a memory
   expect(rows.map((r: any) => r.content)).toEqual(["The user has a dentist appointment on 2026-03-11"]);
   expect(rows[0].valid_from.toISOString()).toBe("2026-03-11T00:00:00.000Z");
 });
-test.todo("as_of: search as of a past date returns the memory valid then (valid_from <= t < valid_to)");
-test.todo("temporal query ('where did I work before X') includes superseded history");
+test("as_of: search as of a past date returns the memory valid then (valid_from <= t < valid_to)", async () => {
+  extractBy.set("E1-ASOF-A", () => [fact("Quinn works at Contoso Retail", { subject: "Quinn", slot: "employer" })]);
+  extractBy.set("E1-ASOF-B", () => [fact("Quinn works at Northwind Labs", { subject: "Quinn", slot: "employer" })]);
+  await add("e1_asof", "E1-ASOF-A Quinn works at Contoso Retail.", { date: "2024-01-10T00:00:00Z" });
+  await add("e1_asof", "E1-ASOF-B Quinn joined Northwind Labs.", { date: "2026-01-10T00:00:00Z" });
+  const at = async (asOf?: string) => {
+    const res = await api("/ns/e1_asof/x/search", { query: "Where does Quinn work?", searchMode: "memories", threshold: 0, ...(asOf && { asOf }) });
+    return ((await res.json()) as { results: { memory: string }[] }).results.map((r) => r.memory);
+  };
+  expect(await at("2025-06-01T00:00:00Z")).toEqual(["Quinn works at Contoso Retail"]);
+  expect(await at("2026-06-01T00:00:00Z")).toEqual(["Quinn works at Northwind Labs"]);
+  expect(await at()).toEqual(["Quinn works at Northwind Labs"]); // no asOf: the current state
+  expect(await at("2023-01-01T00:00:00Z")).toEqual([]); // before anything was known to be true
+});
+
+test("temporal query ('where did I work before X') includes superseded history", async () => {
+  extractBy.set("E1-HIST-A", () => [fact("The user works at Contoso Retail as a data scientist", { subject: "the user", slot: "employer" })]);
+  extractBy.set("E1-HIST-B", () => [fact("The user works at Northwind Labs", { subject: "the user", slot: "employer" })]);
+  await add("e1_hist", "User: E1-HIST-A I'm a data scientist at Contoso Retail.", { date: "2024-01-10T00:00:00Z" });
+  await add("e1_hist", "User: E1-HIST-B I joined Northwind Labs.", { date: "2026-01-10T00:00:00Z" });
+  const ask = async (query: string) => (await client.search("e1_hist", { query, searchMode: "memories", threshold: 0 })).results.map((r) => r.memory);
+  expect(await ask("Where do I work?")).toEqual(["The user works at Northwind Labs"]);
+  expect(await ask("Where did I work before Northwind?")).toContain("The user works at Contoso Retail as a data scientist");
+});
 
 // ---------- Silent overwrites / invariants ----------
 
@@ -322,9 +343,56 @@ test("entity alias links facts with low vector similarity ('my manager' = Priya)
   const relateCall = llm.requests.find((r) => r.role === "relate");
   expect(relateCall?.body.messages[1].content).toContain("Priya Raman is the user's manager");
 });
-test.todo("unapproved inferences rank below trusted facts");
+test("unapproved inferences rank below trusted facts", async () => {
+  const { embed } = await import("../src/embed");
+  const { toVector } = await import("../src/db");
+  await sql`insert into namespaces (id) values ('e1_infer') on conflict do nothing`;
+  const put = async (content: string, inference: boolean) => {
+    const [v] = await embed([content]);
+    await sql`insert into memories (ns, content, kind, is_inference, status, embedding)
+      values ('e1_infer', ${content}, 'fact', ${inference}, ${inference ? "pending_review" : "active"}, ${toVector(v)}::vector)`;
+  };
+  // The inference is the closer match to the query; unapproved, it must still rank below the stated fact.
+  await put("Alex probably enjoys green tea", true);
+  await put("Alex drinks green tea every evening", false);
+  const order = async () => (await client.search("e1_infer", { query: "Does Alex enjoy green tea?", searchMode: "memories", threshold: 0 })).results.map((r) => r.memory);
+  expect(await order()).toEqual(["Alex drinks green tea every evening", "Alex probably enjoys green tea"]);
+  // Memories with no source document: include.documents must not build an empty `in ()` list.
+  const withDocs = await client.search("e1_infer", { query: "green tea", searchMode: "hybrid", include: { documents: true } });
+  expect(withDocs.results.length).toBe(2);
+  await sql`update memories set status = 'active' where ns = 'e1_infer' and is_inference`; // approved in review
+  expect((await order())[0]).toBe("Alex probably enjoys green tea");
+});
 
-target("paraphrase duplicates don't fill the results (MMR / dedupe)", async () => {
+test("x/context: profile, then relevant memories and document chunks, under the budget; sensitive only if allowed", async () => {
+  extractBy.set("E1-CTX-FACTS", () => [
+    fact("The user lives in Pune", { subject: "the user", slot: "home_city" }),
+    fact("The user prefers short answers", { kind: "preference" }),
+    fact("The user has type 2 diabetes", { sensitivity: "sensitive" }),
+    fact("The user's daughter Anika plays the violin", { subject: "Anika" }),
+  ]);
+  extractBy.set("E1-CTX-DOC", () => []);
+  await add("e1_ctx", "User: E1-CTX-FACTS I live in Pune, I like short answers, I have type 2 diabetes, and Anika plays the violin.", { date: "2026-11-01T00:00:00Z" });
+  await add("e1_ctx", "E1-CTX-DOC Violin lessons: Ms. Kulkarni, Saturdays at 10, bring the A-string replacement.", { id: "violin-notes" });
+  const ctx = async (body: Record<string, unknown>) => (await (await api("/ns/e1_ctx/x/context", body)).json()) as any;
+
+  const full = await ctx({ query: "When are the violin lessons?", budgetTokens: 1000, threshold: 0 });
+  expect(full.tokens).toBeLessThanOrEqual(1000);
+  expect(full.context.indexOf("## About the user")).toBe(0);
+  expect(full.context).toContain("- The user lives in Pune");
+  expect(full.context).toContain("Ms. Kulkarni"); // the chunk, cited
+  expect(full.context).toContain("(violin-notes)");
+  expect(full.context).not.toContain("diabetes");
+
+  const tiny = await ctx({ query: "When are the violin lessons?", budgetTokens: 60, threshold: 0 });
+  expect(tiny.tokens).toBeLessThanOrEqual(60);
+  expect(tiny.context.length).toBeGreaterThan(0);
+
+  expect((await api("/ns/e1_ctx/x/settings", { injectSensitive: true }, "PATCH")).status).toBe(200);
+  expect((await ctx({ query: "What health conditions do I have?", budgetTokens: 1000, threshold: 0 })).context).toContain("diabetes");
+});
+
+test("paraphrase duplicates don't fill the results (MMR / dedupe)", async () => {
   await add("e1_para", "E1-PARA: notes about Alex's hobbies.");
   const res = await client.search("e1_para", { query: "what does Alex like to do outdoors?", searchMode: "memories", limit: 3, threshold: 0 });
   const hiking = res.results.filter((r) => r.memory?.toLowerCase().includes("hiking"));

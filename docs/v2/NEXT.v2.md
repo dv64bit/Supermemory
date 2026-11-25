@@ -4,23 +4,27 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 ## Current state (2026-11-25)
 
-- **Phase:** P3 (Dreamer v2) is committed (`b1dde6d`), with fixes on top (DEVLOG 2026-11-25) after a collaborator's V1 vs V2 benchmark (`BENCH-v1-v2.md`). That benchmark showed V2 dropping too many correct facts.
-- **Tests:** 91 pass, 0 fail, 4 todo (P4/P6). Web 1/1.
-- **Not measured:** the fixes haven't been checked with a real model yet. This machine (WSL, 4.9 GB RAM) can't run `qwen3:4b-instruct` at a usable speed, and the collaborator's harness isn't in the repo.
-- **LLM:** local Ollama only (`qwen3:4b-instruct`; `qwen3:1.7b` is installed but not comparable). No paid APIs.
-- **Eval/test database:** local role `supermem`; the URLs are in `server/.env` (git-ignored).
+- **Phase:** P4 (Retrieval v2, `x/context`, `as_of`, latency, v5 mismatches) is done and waits for the owner's commit. P3 fixes were committed as `1b8f0e7`.
+- **Numbers:**
+  - retrieval recall@10 0.955 (P1 0.844);
+  - latency in budget at 100k (search p95 209 / 98 ms, profile 34 ms, `x/context` 222 ms).
+  - Details: BASELINE.md, "P4 results".
+- **Tests:** E1 97 pass, 0 fail, 1 todo (re-dream, P6), 0 targets open. Web 1/1.
+- **Not measured:** P3's LLM steps with a real model since the fixes. This machine (WSL, 4.9 GB RAM) can't run `qwen3:4b-instruct` usefully.
+- **Open risk:** DEFERRED #9, the Bun SQL parameter mix-up. It is mitigated, but the root cause isn't confirmed.
+- **LLM:** local Ollama only. **DB:** local role `supermem`, URLs in `server/.env`.
 
 ## Next
 
+- **P5:** the review/conflict inbox + provenance UI + the `explain_memory` MCP tool. Also move the old extension routes (`/graph`, `/chat`, `/review`, `/restore`) under `/x/`, keeping aliases (GAP_REPORT §7).
 - **When a machine can run the 4b model:**
-  1. Run `cd server && LLM_MODEL=qwen3:4b-instruct bun run eval:e2`.
-  2. Run `bun run eval:compare` against the P1 runs.
-  3. Watch `rejected_by_grounding` and the false-UPDATE rate. The same-slot rule could raise false updates.
-- **P4:** Retrieval v2, `x/context` (which also carries the D9 profile, DEFERRED #3, and the sensitive filter for chat), `as_of`, the latency budget (which now includes V2 ingest, ~3x V1), and the v5 mismatches.
+  - re-run `eval:e2` (extraction, relation, grounding) and compare with P1;
+  - add the entity retrieval set (DEFERRED #7).
+- **Soon:** a minimal repro for DEFERRED #9, and a check on a newer Bun.
 
 ## Standing decisions
 
-- **v5 mismatches (5):** profile `buckets`, `include=documents`, chunk `isLatest`/`isInference`, `list?sort=` and list returning only one array get fixed in the phase that touches them (mostly P4). Each has a `test.failing`, plus an entry in `KNOWN_V5_MISMATCHES` (`server/test/v5-schema.ts`) that you remove once it's fixed.
+- **v5 mismatches:** all 5 fixed in P4; every response in the contract test is validated against `ref/v5.json` with no allowances.
 - **Deleted or edited documents:** their memories are kept as history with `valid_to` set (P3 Policy).
 - **Deferred** (`DEFERRED.md`): #1 the Supermemory local oracle comparison, after building; #2 the E3 end-to-end benchmark (MemoryBench needs paid APIs).
 
@@ -48,3 +52,4 @@ P2 schema + migrations + guard → P3 Dreamer v2 → P4 Retrieval v2 + context +
 - **Database:** the server applies pending migrations on start. By hand: `bun run db:status`, `db:migrate`, `db:rollback [steps]` (rollback is for development). Migrations live in `server/src/migrations/NNNN_name.{up,down}.sql`. Never edit one that has been applied; add a new one.
 - **Tests:** `cd server && bun run test`. This needs Postgres with pgvector and a role that can create databases. Set `TEST_DATABASE_URL` if the default `postgres://localhost/postgres` doesn't work. The first run downloads the bge embedding model.
 - **Evals:** from `server/`, run `bun run eval:e1`, `eval:e2 [--only name]`, `eval:latency`, `eval:compare`. See `eval/README.md`.
+- **Retrieval extensions:** `POST /ns/{ns}/x/search` (v5 body + `asOf`, `history`), `POST /ns/{ns}/x/context` (`query`, `budgetTokens`). Ranking weights are in `server/lifecycle.yaml` (`retrieval`).

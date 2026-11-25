@@ -76,3 +76,35 @@ We tested the memory engine as it is today, before any v2 changes, using a small
 - **The test questions:** written by Claude and checked by the owner.
 
 **What fixes what:** P3 fixes saving, updating and making things up. P4 fixes finding and speed.
+
+## P4 results (2026-11-25): Retrieval v2
+
+These need no LLM, so they were measured on this machine. P3's LLM numbers (extraction, relation, grounding) are still not re-measured; see `BENCH-v1-v2.md` and DEVLOG 2026-11-25.
+
+| Area | P1 | P4 | Budget | Run |
+|---|---|---|---|---|
+| Retrieval recall@10 | 0.844 | **0.955** | — | `2026-11-25T15-30-52Z-e2-retrieval` |
+| Retrieval recall@1 / MRR | 0.714 / 0.770 | **0.779 / 0.873** | — | same |
+| Latency 100k: search p95 (memories / hybrid) | 989 / 1,376 ms | **209 / 98 ms** | < 300 | `2026-11-25T15-26-29Z-latency-100k` |
+| Latency 100k: profile p95 | 673 ms | **34 ms** | < 50 | same |
+| Latency 100k: `x/context` p95 | — | **222 ms** | < 400 | same |
+| Latency 10k: search p95 (memories / hybrid); profile; `x/context` | 202 / 309; 63 ms | 102 / 146; 35; 198 ms | as above | `2026-11-25T15-25-56Z-latency-10k` |
+| E1 | 80 pass (P3) | **97 pass**, 0 fail, 1 todo, 0 targets open | 0 unexpected failures | `2026-11-25T15-31-34Z-e1-suite` |
+
+**Where the retrieval gain came from** (each step measured on `retrieval.v1`):
+1. **Rewriting first-person questions into the third person** ("Which city do I live in?" → "…does the user live in?"): recall@10 0.844 → 0.948, MRR 0.770 → 0.881. Memories say "The user…", so before this the same kind of fact about someone else often won.
+2. **Keyword channel, any query term, weight 0.2 in the fusion:** recall@10 0.955, MRR 0.873. At weight 1, keyword matches lift other people's facts that share a word with the query (recall@10 0.929).
+3. **MMR and paraphrase collapse:** no change on this set, which has no paraphrases. Covered by an E1 scenario.
+
+**Still missed (4 of 77):** "my wife", "my daughter" (×2), "my side project". These need the entity channel ("my daughter" = Anika), which the eval's directly loaded memories don't have, because no dreaming ran. The channel is covered by E1, not measured here.
+
+**Caveats:**
+- The weights were tuned on the same 77 queries they are measured on.
+- Latency uses random vectors. HNSW speed depends on how vectors cluster, so real embeddings may differ.
+- This machine has 4.9 GB of RAM and Postgres's default 128 MB `shared_buffers`. The 100k vector index alone is 391 MB.
+
+### In simple words (P4)
+
+- **Finding memories:** the right memory is now in the top 10 for 95.5% of questions, up from 84%. The biggest fix was simple: questions say "I" and "my", while memories say "the user", so questions are now rewritten to match.
+- **Speed:** with 100,000 memories, a search took about 1 second before and now takes about 0.2 seconds. The profile went from 0.7 seconds to 0.03 seconds. Everything is inside its time budget.
+- **Still missing:** questions about "my wife" or "my daughter" only work once the engine has learned who they are, for example from a chat. The test can't show this yet.

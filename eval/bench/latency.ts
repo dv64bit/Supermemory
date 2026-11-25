@@ -1,8 +1,8 @@
 // bun run eval:latency [sizes...]   (default: 10000 100000)
-// p50/p95 of the read paths PRD.v2 budgets (search < 300 ms without rerank/rewrite, profile < 50 ms), measured
+// p50/p95 of the read paths PRD.v2 budgets (search < 300 ms without rerank/rewrite, x/context < 400 ms, profile < 50 ms), measured
 // in-process through the real routes on a namespace of N memories (+ N/4 chunks across N/40 documents).
-// Bulk rows get random vectors generated in SQL: today's queries scan every row whatever the vectors hold, so cost
-// depends on N, not content. Text comes from the retrieval eval's sentence templates so full-text search does real work.
+// Bulk rows get random vectors generated in SQL. Since P4 the vector channel uses the HNSW index, whose speed depends
+// on how the vectors cluster: timings on real embeddings may differ. Text comes from the retrieval eval's sentence templates so full-text search does real work.
 import { freshEvalDb, mean, percentile, ROOT, writeRun } from "../lib";
 import { sentences } from "../e2/retrieval";
 
@@ -79,6 +79,7 @@ async function bench(n: number) {
   const memSearch = await time(() => post(`/ns/${NS}/search`, { query: nextQ(), searchMode: "memories" }), 40);
   const hybridSearch = await time(() => post(`/ns/${NS}/search`, { query: nextQ() }), 40);
   const profile = await time(() => post(`/ns/${NS}/profile`, {}), 20);
+  const context = await time(() => post(`/ns/${NS}/x/context`, { query: nextQ(), budgetTokens: 1500 }), 40);
   const list = await time(() => post(`/ns/${NS}/list/memories?limit=50`, {}), 20);
   await sql.close();
 
@@ -88,6 +89,7 @@ async function bench(n: number) {
     "search_hybrid_p50_ms": stats(hybridSearch).p50, "search_hybrid_p95_ms": stats(hybridSearch).p95,
     "query_embed_p50_ms": stats(embedMs).p50,
     "profile_p50_ms": stats(profile).p50, "profile_p95_ms": stats(profile).p95,
+    "context_p50_ms": stats(context).p50, "context_p95_ms": stats(context).p95,
     "list_memories_p50_ms": stats(list).p50,
     "load_s": loadMs / 1000, "hnsw_build_s": indexMs / 1000,
   };
@@ -97,12 +99,13 @@ async function bench(n: number) {
     name: n >= 1000 ? `${n / 1000}k` : String(n),
     startedAt,
     durationMs: Date.now() - started,
-    config: { memories: n, chunks: chunkRows.length, documents: docs, vectors: "random (SQL)", queries: QUERIES.length, reps: "40 search / 20 profile", cpus: navigator.hardwareConcurrency },
+    config: { memories: n, chunks: chunkRows.length, documents: docs, vectors: "random (SQL)", queries: QUERIES.length, reps: "40 search / 20 profile / 40 context", cpus: navigator.hardwareConcurrency },
     metrics: m,
     notes: [
       budget("search (memories)", m.search_memories_p95_ms, 300),
       budget("search (hybrid)", m.search_hybrid_p95_ms, 300),
       budget("profile", m.profile_p95_ms, 50),
+      budget("x/context", m.context_p95_ms, 400),
       `mean hybrid search ${mean(hybridSearch).toFixed(0)} ms, of which query embedding ~${stats(embedMs).p50.toFixed(0)} ms`,
     ],
   });

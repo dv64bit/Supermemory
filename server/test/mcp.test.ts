@@ -30,7 +30,7 @@ afterAll(async () => (await client.close(), server.stop(true), llm.stop(true)));
 test("lists upstream-compatible tools", async () => {
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
-    "add_memory", "forget_memory", "get_document", "get_profile", "list_documents",
+    "add_memory", "forget_memory", "get_context", "get_document", "get_profile", "list_documents",
     "list_memories", "list_spaces", "search_memory", "select_space", "who_am_i",
   ]);
 });
@@ -48,6 +48,7 @@ test("select space, add, search, profile, forget round-trip", async () => {
   const id = found.match(/^- (\S+) \[/m)![1];
 
   expect(await call("get_profile")).toContain("## preferences\n- The user prefers green tea over coffee");
+  expect(await call("get_context", { query: "what should I drink?" })).toContain("## About the user\n- The user prefers green tea over coffee");
   expect(await call("list_spaces")).toContain("personal (active): 1 documents, 1 memories");
   expect(await call("list_memories")).toContain(id);
 
@@ -58,7 +59,7 @@ test("select space, add, search, profile, forget round-trip", async () => {
   expect(await call("forget_memory", { content: "tea" })).toContain("Nothing was forgotten yet");
   expect(await call("forget_memory", { ids: [id] })).toBe("Forgot 1 memory.");
   expect(await call("search_memory", { query: "what does the user drink?" })).toContain("No matching memories");
-});
+}, 60_000);
 
 test("resources and the context prompt", async () => {
   const { resources } = await client.listResources();

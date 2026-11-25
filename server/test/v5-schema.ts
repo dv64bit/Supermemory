@@ -80,7 +80,4 @@ export function validatingFetch(known: KnownMismatch[] = []): typeof fetch {
  * in contract.test.ts that flips red when fixed, at which point remove the entry here.
  */
 export const KNOWN_V5_MISMATCHES: KnownMismatch[] = [
-  { operation: "POST /ns/{namespace}/search", issuePath: /^results\.\d+\.(isLatest|isInference)$/, message: /received undefined/, why: "chunk results omit isLatest/isInference" },
-  // Found in P1-B (missed by the P0 audit): the spec requires all three arrays on every list response.
-  { operation: "POST /ns/{namespace}/list/{type}", issuePath: /^(documents|chunks|memories)$/, message: /received undefined/, why: "list returns only the requested array" },
 ];

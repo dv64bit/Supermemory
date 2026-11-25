@@ -145,7 +145,7 @@ export const sm = {
   deleteDocuments: (space: string, ids: string[]) => api(`${ns(space)}/document`, { method: "DELETE", body: { ids } }),
   memories: (space: string, forgotten: boolean, inference = false) =>
     // ponytail: one page of 500; paginate when a space outgrows it
-    api<{ memories: Memory[] }>(`${ns(space)}/list/memories?limit=500${inference ? "&inference=true" : ""}`, {
+    api<{ memories: Memory[] }>(`${ns(space)}/list/memories?limit=500&sort=updatedAt${inference ? "&inference=true" : ""}`, {
       body: { include: { forgotten } },
     }).then((r) => r.memories),
   restore: (space: string, id: string) => api<Memory>(`${ns(space)}/memories/${encodeURIComponent(id)}/restore`, { body: {} }),

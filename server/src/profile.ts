@@ -8,6 +8,7 @@ export const BUILTIN_BUCKETS: Record<string, string> = {
 };
 const STATIC_LIMIT = 40;
 const DYNAMIC_LIMIT = 20;
+const BUCKET_LIMIT = 40;
 const RECENT_DAYS = 30;
 
 export async function buckets(ns: string): Promise<Record<string, string>> {
@@ -20,33 +21,39 @@ export async function buckets(ns: string): Promise<Record<string, string>> {
  * namespace allows injecting them (PATCH /ns/{ns}/x/settings {injectSensitive}).
  *  static  = durable facts and preferences (strongest first)
  *  dynamic = episodes and facts that changed recently (current state)
- * ponytail: no "aggregated_" summaries; add an LLM rollup per bucket if lists get long.
+ * Each list is capped (static 40, dynamic 20, each bucket 40).
+ * ponytail: no "aggregated_" summaries; add an LLM rollup per bucket if lists get long (DEFERRED #3).
  */
-export async function profile(ns: string, filter?: Filter) {
+/** `only` (v5 `buckets`) limits which buckets come back; static and dynamic are always returned. */
+export async function profile(ns: string, filter?: Filter, only?: string[]) {
   const params: unknown[] = [ns];
   const where = filter ? `and ${compileFilter(filter, "m.metadata", params)}` : "";
+  // Ranked and capped in SQL: only the rows the profile shows leave the database.
   const rows = (await sql.unsafe(
-    `select m.id, m.content, m.kind, m.bucket, m.version, m.strength, m.updated_at from memories m
-     where m.ns = $1 and ${LIVE()} and not m.is_inference ${where}
-       and (m.sensitivity is distinct from 'sensitive' or (select inject_sensitive from namespaces where id = $1))
-     order by m.strength desc, m.updated_at desc`,
+    `with live as (
+       select m.id, m.content, m.kind, m.strength, m.updated_at,
+              m.kind = 'episode' or (m.version > 1 and m.updated_at > now() - interval '${RECENT_DAYS} days') as dyn,
+              case when m.kind = 'preference' then 'preferences' else m.bucket end as b
+       from memories m
+       where m.ns = $1 and ${LIVE()} and not m.is_inference ${where}
+         and (m.sensitivity is distinct from 'sensitive' or (select inject_sensitive from namespaces where id = $1))),
+     st as (select 'static' as part, id, content, null::text as b, row_number() over (order by strength desc, updated_at desc) as rn
+            from live where not dyn order by rn limit ${STATIC_LIMIT}),
+     dy as (select 'dynamic', id, content, null, row_number() over (order by updated_at desc) from live where dyn order by 5 limit ${DYNAMIC_LIMIT}),
+     bu as (select * from (select 'bucket', id, content, b, row_number() over (partition by b order by strength desc, updated_at desc) as rn
+                           from live where b is not null) x where rn <= ${BUCKET_LIMIT})
+     select * from st union all select * from dy union all select * from bu order by part, b, rn`,
     params,
-  )) as any[];
+  )) as { part: string; id: string; content: string; b: string | null }[];
 
-  const recent = (r: any) => Date.now() - r.updated_at.getTime() < RECENT_DAYS * 864e5;
-  const item = (r: any) => ({ id: r.id, memory: r.content });
-  const isDynamic = (r: any) => r.kind === "episode" || (r.version > 1 && recent(r));
-
+  const item = (r: { id: string; content: string }) => ({ id: r.id, memory: r.content });
   const out: Record<string, { id: string; memory: string }[]> = {};
-  for (const name of Object.keys(await buckets(ns))) out[name] = [];
-  for (const r of rows) {
-    const b = r.kind === "preference" ? "preferences" : r.bucket;
-    if (b && out[b]) out[b].push(item(r));
-  }
+  for (const name of Object.keys(await buckets(ns))) if (!only || only.includes(name)) out[name] = [];
+  for (const r of rows) if (r.part === "bucket" && out[r.b!]) out[r.b!].push(item(r));
   return {
     profile: {
-      static: rows.filter((r) => !isDynamic(r)).slice(0, STATIC_LIMIT).map(item),
-      dynamic: rows.filter(isDynamic).sort((a, b) => b.updated_at - a.updated_at).slice(0, DYNAMIC_LIMIT).map(item),
+      static: rows.filter((r) => r.part === "static").map(item),
+      dynamic: rows.filter((r) => r.part === "dynamic").map(item),
       buckets: out,
     },
   };

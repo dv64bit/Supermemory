@@ -47,6 +47,17 @@ function buildServer(call: (method: string, path: string, body?: unknown) => Pro
     return text([`# Profile (${ns})`, `## Static\n${list(profile.static)}`, `## Dynamic\n${list(profile.dynamic)}`, ...buckets].join("\n\n"));
   });
 
+  // Not an upstream tool: the token-budgeted block from x/context, for clients that want one call instead of two.
+  server.registerTool("get_context", {
+    description: "Get a ready-to-use context block for a task or question: the user's profile, the memories most relevant to the query (with dates and IDs) and matching document excerpts, packed under a token budget.",
+    inputSchema: { query: z.string().min(1).max(2000).optional(), budgetTokens: z.number().int().min(50).max(8000).optional(), namespace: nsSchema },
+    annotations: ro,
+  }, async ({ query, budgetTokens, namespace }) => {
+    const ns = await space(namespace);
+    const res = await call("POST", `/ns/${ns}/x/context`, { ...(query && { query }), ...(budgetTokens && { budgetTokens }) });
+    return text(res.context ? `# Context (${ns})\n\n${res.context}` : `Nothing is stored in "${ns}" yet.`);
+  });
+
   server.registerTool("add_memory", {
     description: "Save something worth remembering (a fact, preference, decision or note, or a URL to ingest) in the active space. To remove outdated information use forget_memory.",
     inputSchema: { content: z.string().min(1).max(200_000), namespace: nsSchema },

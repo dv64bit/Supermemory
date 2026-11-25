@@ -14,6 +14,18 @@ const schema = z.object({
     keep_if_significance: z.number().min(0).max(1),
   }),
   relate: z.object({ update_min_confidence: z.number().min(0).max(1) }),
+  retrieval: z.object({
+    rrf_k: z.number().positive(),
+    channels: z.object({ vector: z.number().min(0), keyword: z.number().min(0), entity: z.number().min(0) }),
+    kind: z.object({ fact: z.number(), preference: z.number(), episode: z.number() }),
+    recency_floor: z.number().min(0).max(1),
+    strength_weight: z.number().min(0),
+    confidence_weight: z.number().min(0).max(1),
+    unapproved_inference: z.number().min(0).max(1),
+    period_boost: z.number().min(1),
+    mmr_lambda: z.number().min(0).max(1),
+    collapse_above: z.number().min(0).max(1),
+  }),
 });
 export type Lifecycle = z.infer<typeof schema>;
 

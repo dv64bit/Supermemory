@@ -38,6 +38,7 @@ Things we have decided to skip for now and must come back to. Each entry says wh
 - **What:** PLAN.v2 §3 D9: after each dream, update only the affected profile sections with an LLM (`profile` role).
 - **Why deferred:** The profile is still built from live memories on every read, with no LLM, and that already reflects every change Dreamer v2 makes. An LLM rollup adds a call per dream on a CPU-only model. It belongs with `x/context` (token-budgeted context assembly) in P4, where we can measure whether a summary beats the raw list.
 - **When:** P4.
+- **P4 decision (2026-11-25):** keep the LLM-free profile. `x/context` packs the ranked lists within its budget, and at 100k memories profile p95 is 34 ms. An LLM summary per dream would cost seconds of CPU per document, and there is no eval yet that shows a summary helps. Revisit when E3 (#2) can measure answer quality.
 
 ### 4. Conversation debounce (idle 120 s / end marker)
 
@@ -52,6 +53,41 @@ Things we have decided to skip for now and must come back to. Each entry says wh
 - **What:** PLAN.v2 §3 D3: for ambiguous entity names, ask the LLM which existing entity is meant.
 - **Why deferred:** D3 does exact/alias match, then embedding match (≥ 0.9, same type). There is no labelled entity set to show where that fails, and every LLM call costs seconds on the CPU model.
 - **When:** When an entity eval set exists (P4, alongside the entity retrieval channel).
+
+### 6. Cross-encoder rerank and LLM query rewrite (`rerank`, `rewriteQuery`)
+
+- **Added:** 2026-11-25 (P4)
+- **What:** PLAN.v2 §4.4: a cross-encoder (bge-reranker-base) over the top 50; v5 `rerank` and `rewriteQuery` turn them on. Today both are accepted and ignored.
+- **Why deferred:**
+  - P4 met its recall and latency goals without them (recall@10 0.955).
+  - A CPU cross-encoder over 50 pairs costs on the order of a second, so it would stay off the default path anyway.
+  - An LLM rewrite costs seconds on the local model.
+- **When:** if E2/E3 show ranking errors that rules can't fix; measure rerank latency first.
+
+### 7. Entity retrieval eval set
+
+- **Added:** 2026-11-25 (P4)
+- **What:** a retrieval set whose memories come through dreaming (with entities and aliases), so the entity channel ("my daughter" = Anika) is measured. 4 of the 5 misses left in `retrieval.v1` need it.
+- **Why deferred:** dreaming needs the LLM, which this machine can't run at a usable speed. Alternatively, a `retrieval.v2` could load entity links directly.
+- **When:** with the next real-model eval run (or as `retrieval.v2` with hand-written entity links).
+
+### 8. pgvector ≥ 0.8 (iterative index scans)
+
+- **Added:** 2026-11-25 (P4)
+- **What:** this machine has pgvector 0.6, whose HNSW scan filters after the index. `retrieve.ts` `nearest` works around it with an exact rescan when the index comes back short. 0.8's `hnsw.iterative_scan` would make that fallback rare.
+- **Why deferred:** it is a system package upgrade, the owner's call.
+- **When:** before a deployment with several large namespaces.
+
+### 9. Bun SQL: rows stored with another statement's parameters
+
+- **Added:** 2026-11-25 (P4)
+- **What:** after the migrations ran on the shared client, about 1 load in 6 stored rows with an earlier statement's parameters. Moving migrations to their own client stopped it in 12 of 12 loads, but the root cause isn't confirmed (DEVLOG 2026-11-25).
+- **Next steps:**
+  - make a minimal repro without our code;
+  - check a newer Bun;
+  - report it upstream.
+  - Until then, the retrieval eval verifies its load.
+- **When:** soon. If the cause is broader than the migrations, real memories could be stored wrong.
 
 ## Done
 
