@@ -2,23 +2,21 @@
 
 This file is overwritten as work moves. History lives in `DEVLOG.md`; things skipped on purpose live in `DEFERRED.md`. Supersedes `NEXT.md`.
 
-## Current state (2026-10-24)
+## Current state (2026-11-25)
 
-- **Phase:** P3 (Dreamer v2) code is done and all tests pass. It waits for:
-  1. the real-model E2 run, to check that it beats `BASELINE.md`;
-  2. the owner's commit.
-- **Tests:** E1 has 80 passing, 0 unexpected failures, 4 todos (P4/P6) and 6 open targets (P4). Web 1/1.
-- **Blocker:** Ollama is too slow on this machine right now. WSL has 4.9 GB of RAM, the model needs about 3.1 GB, and the machine is swapping. See DEVLOG 2026-10-24.
-- **LLM:** local Ollama with `qwen3:4b-instruct`, CPU only. No paid APIs.
+- **Phase:** P3 (Dreamer v2) is committed (`b1dde6d`), with fixes on top (DEVLOG 2026-11-25) after a collaborator's V1 vs V2 benchmark (`BENCH-v1-v2.md`). That benchmark showed V2 dropping too many correct facts.
+- **Tests:** 91 pass, 0 fail, 4 todo (P4/P6). Web 1/1.
+- **Not measured:** the fixes haven't been checked with a real model yet. This machine (WSL, 4.9 GB RAM) can't run `qwen3:4b-instruct` at a usable speed, and the collaborator's harness isn't in the repo.
+- **LLM:** local Ollama only (`qwen3:4b-instruct`; `qwen3:1.7b` is installed but not comparable). No paid APIs.
 - **Eval/test database:** local role `supermem`; the URLs are in `server/.env` (git-ignored).
 
 ## Next
 
-- **Once Ollama is fast again:**
-  1. Run `cd server && LLM_BASE_URL=http://localhost:11434/v1 LLM_MODEL=qwen3:4b-instruct bun run eval:e2`.
-  2. Run `bun run eval:compare` to compare against the P1 baseline runs.
-  3. Tune `extract.v2` / `relate.v2` / `ground.v1` if a metric regressed, then record the P3 numbers in BASELINE.md.
-- **Then P4:** Retrieval v2, `x/context` (which also carries the D9 profile, DEFERRED #3, and the sensitive filter for chat), `as_of`, the latency budget, and the v5 mismatches.
+- **When a machine can run the 4b model:**
+  1. Run `cd server && LLM_MODEL=qwen3:4b-instruct bun run eval:e2`.
+  2. Run `bun run eval:compare` against the P1 runs.
+  3. Watch `rejected_by_grounding` and the false-UPDATE rate. The same-slot rule could raise false updates.
+- **P4:** Retrieval v2, `x/context` (which also carries the D9 profile, DEFERRED #3, and the sensitive filter for chat), `as_of`, the latency budget (which now includes V2 ingest, ~3x V1), and the v5 mismatches.
 
 ## Standing decisions
 

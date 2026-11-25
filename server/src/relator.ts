@@ -2,7 +2,7 @@
 // The LLM only proposes an op per candidate; `policy` decides what actually happens.
 import { sql, toVector } from "./db";
 import type { Candidate, Speaker } from "./extractor";
-import type { Resolved } from "./entities";
+import { normName, type Resolved } from "./entities";
 import { updateMinConfidence } from "./lifecycle";
 import { call } from "./llm";
 import { LIVE } from "./memories";
@@ -14,7 +14,7 @@ export type Neighbor = {
 export type ProposedOp = "ADD" | "DUPLICATE" | "UPDATE" | "EXTEND" | "CONFLICT" | "SKIP";
 export type FinalOp = ProposedOp | "HISTORICAL";
 /** `target` is a neighbour index; `targetCand` points at an earlier candidate of the same unit (its new memory). */
-export type Plan = { op: FinalOp; target: number | null; targetCand?: number; confidence: number; reason?: string; path: "exact" | "llm" | "none" | "unit" };
+export type Plan = { op: FinalOp; target: number | null; targetCand?: number; confidence: number; reason?: string; path: "exact" | "llm" | "none" | "unit" | "slot" };
 
 const VEC_K = 5;
 const VEC_MIN_SIM = 0.55;
@@ -87,7 +87,17 @@ const relateSchema = {
 
 type Proposal = { op: ProposedOp; target: number | null; confidence: number; path: Plan["path"] };
 
-/** D5: exact (normalised) repeats are duplicates without a model; everything with neighbours goes to one relate call. */
+/** Neighbour index that holds the same subject's same single-valued attribute (slot) with a different value. */
+const sameSlot = (c: Candidate, neighbors: Neighbor[], mine: number[]) =>
+  c.slot && c.subject
+    ? mine.find((j) => neighbors[j].slot === c.slot && neighbors[j].subject && normName(neighbors[j].subject!) === normName(c.subject!))
+    : undefined;
+
+/**
+ * D5: exact (normalised) repeats are duplicates without a model; everything with neighbours goes to one relate call.
+ * Small models often call a changed value (new employer, new city) ADD or EXTEND; when the extractor tagged both
+ * sides with the same subject and slot, that answer becomes an UPDATE proposal, and `policy` still applies every check.
+ */
 async function propose(cands: Candidate[], neighbors: Neighbor[], candNeighbors: number[][]): Promise<Proposal[]> {
   const out: Proposal[] = cands.map((_, i) => ({ op: "ADD", target: null, confidence: 1, path: candNeighbors[i].length ? "llm" : "none" }));
   const ask: number[] = [];
@@ -98,11 +108,11 @@ async function propose(cands: Candidate[], neighbors: Neighbor[], candNeighbors:
   }
   if (!ask.length) return out;
   const { decisions } = await call<{ decisions: { i: number; op: ProposedOp; target: number | null; confidence: number }[] }>(
-    "relate", "relate.v2",
+    "relate", "relate.v3",
     {
       candidates: ask.map((i) => ({
-        i, content: cands[i].content, speaker: cands[i].speaker, subject: cands[i].subject,
-        neighbors: candNeighbors[i].map((j) => ({ j, content: neighbors[j].content, speaker: neighbors[j].speaker })),
+        i, content: cands[i].content, speaker: cands[i].speaker, subject: cands[i].subject, slot: cands[i].slot,
+        neighbors: candNeighbors[i].map((j) => ({ j, content: neighbors[j].content, speaker: neighbors[j].speaker, subject: neighbors[j].subject, slot: neighbors[j].slot })),
       })),
     },
     relateSchema,
@@ -112,6 +122,13 @@ async function propose(cands: Candidate[], neighbors: Neighbor[], candNeighbors:
     // Only targets that were offered for that candidate count.
     const target = d.target !== null && candNeighbors[d.i].includes(d.target) ? d.target : null;
     out[d.i] = { op: d.op, target, confidence: Math.min(1, Math.max(0, Number(d.confidence) || 0)), path: "llm" };
+  }
+  const minConf = updateMinConfidence();
+  for (const i of ask) {
+    const p = out[i];
+    const weak = p.op === "ADD" || p.op === "EXTEND" || (p.op === "UPDATE" && p.confidence < minConf);
+    const j = weak ? sameSlot(cands[i], neighbors, candNeighbors[i]) : undefined;
+    if (j !== undefined) out[i] = { op: "UPDATE", target: j, confidence: Math.max(p.confidence, minConf), path: "slot" };
   }
   return out;
 }

@@ -2,7 +2,7 @@
 import { expect, test } from "bun:test";
 import { normName } from "../src/entities";
 import type { Candidate } from "../src/extractor";
-import { locate, RELATIVE_DATE } from "../src/grounder";
+import { locate, RELATIVE_DATE, resolveDates } from "../src/grounder";
 import { policy, type Neighbor } from "../src/relator";
 
 test("locate finds a quote despite case, punctuation and a small slip; rejects one that isn't there", () => {
@@ -16,6 +16,23 @@ test("locate finds a quote despite case, punctuation and a small slip; rejects o
 test("relative dates are caught; absolute ones pass", () => {
   for (const s of ["exam tomorrow", "moved last month", "in two weeks", "this Friday", "3 days ago"]) expect(RELATIVE_DATE.test(s)).toBe(true);
   for (const s of ["exam on 2026-10-24", "moved in March 2026", "every Friday", "a two-week trip"]) expect(RELATIVE_DATE.test(s)).toBe(false);
+});
+
+test("relative dates are rewritten against the document date", () => {
+  const sat = new Date("2026-10-24T09:30:00Z"); // a Saturday
+  const cases: [string, string][] = [
+    ["The user has an exam tomorrow", "The user has an exam on 2026-10-25"],
+    ["The user moved to Pune last week", "The user moved to Pune in the week of 2026-10-12"],
+    ["The user flies to Kochi next Friday", "The user flies to Kochi on 2026-10-30"],
+    ["The user met Ravi last Saturday", "The user met Ravi on 2026-10-17"],
+    ["The user's trip is in two weeks", "The user's trip is in the week of 2026-11-02"],
+    ["The user started 3 days ago", "The user started on 2026-10-21"],
+    ["The user moves next month", "The user moves in November 2026"],
+    ["The user graduated last year", "The user graduated in 2025"],
+    ["The user is free this weekend", "The user is free on the weekend of 2026-10-24"],
+  ];
+  for (const [text, want] of cases) expect(resolveDates(text, sat)).toBe(want);
+  for (const [text] of cases) expect(RELATIVE_DATE.test(resolveDates(text, sat))).toBe(false);
 });
 
 test("entity names: 'my manager' and \"the user's manager\" are one key; articles drop", () => {

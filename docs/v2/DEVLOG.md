@@ -552,3 +552,44 @@ What P3 changed:
 - Your edits are locked: facts you edit yourself won't be overwritten.
 - Private details: health and money facts are kept out of your profile unless you allow them.
 - Edited or deleted documents no longer leave old facts behind.
+
+## 2026-11-25: P3 fixes after the V1 vs V2 benchmark
+
+A collaborator ran an end-to-end V1 vs V2 benchmark with `qwen3:4b-instruct` on their machine (`docs/v2/BENCH-v1-v2.md`; their harness and run files are not in the repo). V2 won on its own goals (0.83 vs 0.67), but lost on the basics (0.55 vs 0.71), mostly on saving facts (0.57 vs 1.00). Ingest was ~3x slower. Changed facts often stayed current on both builds (update 0.45 vs 0.50).
+
+**Cause.** D2 grounding rejected 104 of 379 candidates, many of them correct. Top reasons were "quote is the assistant's words" (43), "quote not found" (25) and "unresolved relative date" (6).
+
+Reproduced the first one here: when the user says "flying to Kochi next Friday, flight AI-302" and the assistant echoes "So you're flying to Kochi on AI-302", a small model copies the echo as its quote. The exact match then lands only in the assistant's turn, and the fact was dropped.
+
+**Fixes**
+
+- **Grounder** (`grounder.ts`)
+  - **Loose quotes and echoes:** when the exact quote check fails, or the quote is found only in an assistant turn, the candidate still passes the code check if its key words (filler words dropped) appear close together in the user's own words. The window may be 2x the key-word count, and coverage must be ≥ 0.8. The LLM ground check then decides as before.
+    - Assistant suggestions still fail, because the user never said the key words ("could use Postgres").
+    - Hallucinations with one missing key word still fail ("I like coffee" vs "I like tea").
+  - **Relative dates:** these are now rewritten against the document date, not rejected. Examples: "last week" → "in the week of 2026-10-12", "next Friday" → "on 2026-10-30", "next month" → "in November 2026". The new function is `resolveDates`. The rejection stays as a fallback.
+- **Relate** (`relator.ts`, prompt `relate.v3`)
+  - Candidates and neighbours now carry `subject` and `slot` into the relate call. The prompt says that the same subject and slot with a different value is an UPDATE.
+  - **Code rule:** when the model answers ADD, EXTEND or a low-confidence UPDATE, and an offered neighbour has the same subject and the same non-null slot, the proposal becomes an UPDATE at the confidence threshold (`path: "slot"`). `policy()` still applies every check: event time (HISTORICAL), pinned, hearsay and single successor.
+  - **Risk:** this relies on the extractor tagging single-valued slots consistently. A multi-valued fact wrongly given a slot would supersede its sibling.
+- **Tests**
+  - 4 new E1 scenarios: assistant echo kept, loose quote kept, relative date resolved, same-slot ADD supersedes.
+  - 1 unit test with 9 date cases.
+  - The first E1 test now has a 60 s timeout, because a cold embedding-model load can exceed 5 s.
+  - Full suite: 91 pass, 0 fail, 4 todo.
+
+**Not done**
+
+- **Not re-measured with a real model.** This machine can't run the 4b model at a usable speed, and the collaborator can't re-run. The numbers above are the before picture.
+- **Ingest latency (3x V1)** isn't addressed. It comes from the extra ground call and the per-candidate neighbour queries, and belongs with the P4 latency work.
+- **The 20 "not supported by the source" rejections** come from the 4b model's own judgement. They are untouched.
+
+**In simple words**
+
+A friend's test showed the new engine threw away too many correct facts, and still didn't replace changed facts (old job, old city) often enough. Fixed:
+1. If you say something and the assistant repeats it back, the fact is kept.
+2. If the AI copies your words slightly wrong, the fact goes to the AI double-check instead of being thrown away.
+3. "Last week" or "next Friday" is turned into a real date instead of the fact being dropped.
+4. When a new fact sets the same thing as an old one (same person, same "slot", e.g. employer), the new one replaces the old one, even if the AI wasn't sure.
+
+All tests pass. We couldn't re-run the real-model test, so the improvement isn't measured yet.

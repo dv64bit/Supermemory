@@ -70,7 +70,7 @@ export async function runRelation() {
   for (const cat of [...new Set(per.map((r) => r.category))].sort()) byCategory[cat] = agg(per.filter((r) => r.category === cat));
   return {
     config: {
-      dataset: `relation.v${data.version}`, cases: data.cases.length, prompt: "relate.v2", policy: "relator.ts D6",
+      dataset: `relation.v${data.version}`, cases: data.cases.length, prompt: "relate.v3", policy: "relator.ts D6",
     },
     metrics: {
       ...agg(per),

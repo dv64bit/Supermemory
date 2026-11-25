@@ -86,7 +86,7 @@ test("late-arriving old fact becomes historical, not latest", async () => {
   const now = await live("e1_late");
   expect(now.some((m) => m.includes("Stripe"))).toBe(true);
   expect(now.some((m) => m.includes("Google"))).toBe(false);
-});
+}, 60_000); // the first test loads the embedding model
 
 test("relative date ('tomorrow') is resolved to an absolute valid_from; a memory still saying 'tomorrow' is rejected", async () => {
   extractBy.set("E1-REL", () => [
@@ -102,6 +102,19 @@ test.todo("as_of: search as of a past date returns the memory valid then (valid_
 test.todo("temporal query ('where did I work before X') includes superseded history");
 
 // ---------- Silent overwrites / invariants ----------
+
+test("a model that calls a changed single-valued attribute ADD still supersedes it (same subject, same slot)", async () => {
+  extractBy.set("E1-SLOT-A", () => [fact("The user works at Contoso Retail", { subject: "the user", slot: "employer" })]);
+  extractBy.set("E1-SLOT-B", () => [fact("The user works at Northwind Labs", { subject: "the user", slot: "employer" })]);
+  extractBy.set("E1-SLOT-C", () => [fact("The user plays chess", { subject: "the user", slot: null, kind: "preference" })]);
+  relateBy.set("Northwind Labs", () => ({ op: "ADD", target: null, confidence: 0.6 }));
+  relateBy.set("plays chess", () => ({ op: "ADD", target: null, confidence: 0.9 }));
+  await add("e1_slot", "User: E1-SLOT-A I work at Contoso Retail.", { date: "2026-01-01T00:00:00Z" });
+  await add("e1_slot", "User: E1-SLOT-B I just joined Northwind Labs.", { date: "2026-06-01T00:00:00Z" });
+  await add("e1_slot", "User: E1-SLOT-C I play chess.", { date: "2026-07-01T00:00:00Z" });
+  expect((await memRow("e1_slot", "The user works at Contoso Retail")).is_latest).toBe(false);
+  expect((await live("e1_slot")).sort()).toEqual(["The user plays chess", "The user works at Northwind Labs"]);
+});
 
 test("a numeric change is an update, not a duplicate (2 children -> 3 children)", async () => {
   await add("e1_kids", "E1-KIDS-2: Kim has two kids.");
@@ -208,6 +221,24 @@ test("assistant suggestion is not stored as a user fact; it is stored once the u
   expect(await live("e1_sugg")).toEqual([]);
   await add("e1_sugg", "User: E1-YES which database then?\n\nAssistant: You could use Postgres.\n\nUser: Good call, I'll go with Postgres then.");
   expect(await live("e1_sugg")).toEqual(["The user decided to use Postgres for the side project"]);
+});
+
+test("a fact the assistant repeats back is kept when the quote copies the assistant's wording", async () => {
+  extractBy.set("E1-ECHO", () => [fact("The user is flying to Kochi on AI-302 on 2026-10-30", { quote: "flying to Kochi on AI-302" })]);
+  await add("e1_echo", "User: E1-ECHO btw I'm flying to Kochi next Friday, flight AI-302.\n\nAssistant: Nice! So you're flying to Kochi on AI-302. Want a packing list?");
+  expect(await live("e1_echo")).toEqual(["The user is flying to Kochi on AI-302 on 2026-10-30"]);
+});
+
+test("a loosely copied quote goes to the LLM check instead of being rejected outright", async () => {
+  extractBy.set("E1-LOOSE", () => [fact("The user now works at Northwind Labs", { slot: "employer", quote: "I am now employed at Northwind Labs" })]);
+  await add("e1_loose", "User: E1-LOOSE Big news, I'm now employed at Northwind Labs!");
+  expect(await live("e1_loose")).toEqual(["The user now works at Northwind Labs"]);
+});
+
+test("a relative date left in a memory is resolved against the document date, not dropped", async () => {
+  extractBy.set("E1-REL", () => [fact("The user moved to Pune last week", { quote: "I moved to Pune last week" })]);
+  await add("e1_rel", "User: E1-REL I moved to Pune last week.", { date: "2026-10-24T00:00:00Z" });
+  expect(await live("e1_rel")).toEqual(["The user moved to Pune in the week of 2026-10-12"]);
 });
 
 test("third-party claim is stored attributed ('Ravi said ...'), not as the user's fact", async () => {
