@@ -15,6 +15,7 @@ const body = z.object({
 }).strict().refine((b) => b.messages.at(-1)!.role === "user", { message: "last message must be from the user" });
 
 const CONTEXT_BUDGET = 1500; // tokens
+const PING_MS = 5000;
 
 const systemPrompt = (context: string) => `You are the user's personal assistant with long-term memory.
 Use what you know about the user when it helps; don't recite it unprompted. If memory and the conversation disagree, trust the conversation.
@@ -45,6 +46,9 @@ export function mountChat(app: Hono, apiKey: string) {
     return streamSSE(c, async (stream) => {
       await stream.writeSSE({ event: "context", data: JSON.stringify({ conversationId: cid, memories, profile: { static: profile.static, dynamic: profile.dynamic } }) });
       let reply = "";
+      // A local model can take minutes to load and start answering; a quiet connection gets closed by the server
+      // (Bun's idle timeout) or a proxy. A ping every few seconds keeps it open; clients ignore the event.
+      const ping = setInterval(() => void stream.writeSSE({ event: "ping", data: "{}" }).catch(() => {}), PING_MS);
       try {
         const prompt: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx.context) }, ...messages];
         for await (const text of llmStream("chat", prompt, c.req.raw.signal)) {
@@ -54,6 +58,8 @@ export function mountChat(app: Hono, apiKey: string) {
       } catch (e) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ error: String((e as Error).message ?? e) }) });
         return;
+      } finally {
+        clearInterval(ping);
       }
       await stream.writeSSE({ event: "done", data: JSON.stringify({ conversationId: cid }) });
 

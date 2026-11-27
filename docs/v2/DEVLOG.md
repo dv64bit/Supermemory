@@ -739,3 +739,21 @@ All the logic is in `server/src/review.ts`.
 - **Still open in P5:** moving `/chat` under `/x/` (it takes the namespace in the body, so it needs a new route shape, not just an alias).
 
 **In simple words:** the Review page now shows disagreeing facts side by side, with the words each came from, and four buttons: use the new one, keep the old one, keep both, or write a combined one. Every memory's page now has a "Why do I know this?" box saying where it came from and what has happened to it since.
+
+## 2026-11-27: chat hung forever on a slow local model (fixed)
+
+- **Symptom (owner):** the first chat message ("I am an AI engineer") never got a reply; the page kept showing "thinking".
+- **Cause:** Bun's server closes a connection that is quiet for 10 s (`idleTimeout`). Chat sends the `context` event, then waits for the model's first token. On this machine, `qwen3:1.7b` takes over a minute to load and start answering, so Bun closed the stream. `llm_calls` showed both attempts failing at about 9 s with "The connection was closed".
+- **Fix:**
+  - chat sends an SSE `ping` every 5 s until it is done, which clients ignore (`chat.ts`);
+  - the server's `idleTimeout` is now 255 s, Bun's maximum (`index.ts`).
+- **Checked live**, cold start, same message:
+  - context arrived at 2 s;
+  - pings kept the connection open;
+  - the first words came at ~70 s, and the full reply at 106 s.
+  - The saved conversation was then dreamed: 1 memory added, and the assistant's reply was rejected as "said by the assistant".
+  - No automated test for the timing: it would need a 10 s+ wait.
+- **Seen, not fixed:** `qwen3:1.7b` stored the user's line almost verbatim ("User: Hi, I am an AI engineer.") instead of "The user is an AI engineer". That is extraction quality on the small model; P1/P3 numbers are for the 4b model.
+- **Local setup:** `server/.env` now has `DATABASE_URL` for a local `supermem` database (git-ignored).
+
+**In simple words:** the chat page was hanging because the server gave up after 10 seconds of silence, while the AI needed over a minute to start answering. Chat now keeps the connection alive while it waits, so replies come through. They're still slow on this computer: about 1–2 minutes for the first reply.
