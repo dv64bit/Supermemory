@@ -69,4 +69,7 @@ test("v1 data is backfilled: event time, speaker, confidence, status, superseded
   expect(by["Kim has 2 children"].status).toBe("active");
   expect(by["Kim is a parent"].status).toBe("pending_review");
   expect(by["Kim dislikes kids"].status).toBe("rejected");
+  // 0005: the pending v1 inference gets a review item, so the inbox shows it; the rejected one doesn't.
+  const items = await sql`select m.content, r.kind, r.status from review_items r join memories m on m.pk = r.memory_pk`;
+  expect([...items]).toEqual([{ content: "Kim is a parent", kind: "inference", status: "open" }]);
 });

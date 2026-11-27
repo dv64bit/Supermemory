@@ -16,7 +16,7 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 ## Next
 
-- **P5 (in progress):** server side done (review inbox, explain, `explain_memory`, routes under `/x/`). Left: the web review screen with keep new / keep old / keep both / merge, a "Why do I know this?" panel on memory details, and `/chat` under `/x/`.
+- **P5 (nearly done):** server and web are built (review inbox with keep new / keep old / keep both / merge, the "Why do I know this?" panel, `explain_memory`, routes under `/x/`). Left: the owner checks the screens in a browser, and `/chat` moves under `/x/`.
 - **When a machine can run the 4b model:**
   - re-run `eval:e2` (extraction, relation, grounding) and compare with P1;
   - add the entity retrieval set (DEFERRED #7).

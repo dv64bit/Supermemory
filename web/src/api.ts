@@ -67,6 +67,29 @@ export type MemoryDetail = Memory & {
 
 export type Chunk = { id: string; position: number; content: string };
 
+/** One side of a review item, or the memory being explained (GET /x/review, /x/memories/{id}/explain). */
+export type ReviewMemory = {
+  id: string; memory: string; kind: string; speaker: string | null; confidence: number | null; quote: string | null;
+  validFrom: string | null; validTo: string | null; isLatest: boolean; status: string; pinned: boolean;
+  document: { id: string; title: string | null } | null;
+};
+export type ReviewItem = {
+  id: string; kind: "inference" | "conflict" | "low_confidence"; status: string; createdAt: string;
+  reason: string | null; confidence: number | null; resolution: string | null;
+  memory: ReviewMemory; related: ReviewMemory | null; from: ReviewMemory[];
+};
+export type ReviewAction =
+  | { action: "approve" | "reject" | "keep_new" | "keep_old" | "keep_both" }
+  | { action: "merge"; content: string };
+export type Explanation = {
+  summary: string;
+  memory: ReviewMemory & { version: number; isInference: boolean; learnedAt: string | null };
+  learnedBy: { dreamRun: string; pipelineVersion: string; models: string[]; at: string } | null;
+  derivedFrom: { id: string; memory: string }[];
+  versions: { id: string; memory: string; version: number; isLatest: boolean; validFrom: string | null; validTo: string | null }[];
+  history: { action: string; actor: string; reason: string | null; at: string }[];
+};
+
 export type SearchResult = {
   id: string;
   memory?: string;
@@ -164,6 +187,10 @@ export const sm = {
     }),
   review: (space: string, id: string, action: "approve" | "decline") =>
     api<Memory>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/review`, { body: { action } }),
+  reviewItems: (space: string) => api<{ items: ReviewItem[] }>(`${ns(space)}/x/review`).then((r) => r.items),
+  resolve: (space: string, id: string, body: ReviewAction) =>
+    api<{ status: string; memory: { id: string; memory: string } }>(`${ns(space)}/x/review/${encodeURIComponent(id)}`, { body }),
+  explain: (space: string, id: string) => api<Explanation>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/explain`),
   profile: (space: string) => api<{ profile: Profile }>(`${ns(space)}/profile`, { body: {} }).then((r) => r.profile),
 };
 

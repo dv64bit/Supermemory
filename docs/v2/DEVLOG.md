@@ -724,3 +724,18 @@ All the logic is in `server/src/review.ts`.
 - **Still to do in P5:** the web review screen and the provenance panel, and moving `/chat` under `/x/`.
 
 **In simple words:** when the engine isn't sure whether a new fact should replace an old one, it now asks. You can keep the new one, keep the old one, keep both, or write one combined version yourself. For any memory you can also ask "why do you know this?" and get the exact words it came from, where and when. That also works from Claude Code.
+
+## 2026-11-27: P5 web, review screen and "Why do I know this?"
+
+- **Review page** (`web/src/pages/Review.tsx`), built on `GET /x/review`:
+  - **Disagreements:** each is a card with the existing and the new memory side by side, showing the source quote ("You said: …"), since-date, confidence, pinned flag and a source link.
+  - **Disagreement actions:** *Use new*, *Keep existing*, *Keep both* and *Merge…*. Merge opens an editor prefilled with the new text.
+  - **Inferences:** they keep the quick Keep / Forget inbox, now showing the memories they were drawn from.
+- **Memory detail** (`Memories.tsx`) gets a "Why do I know this?" panel from `/x/memories/{id}/explain`: the summary, the memories an inference came from, the change history (learned, confirmed again, replaced, edited by you…) and the run and models that learned it.
+- **Migration 0005:** inferences made before P3 had no review item and would have been missing from the new inbox. They are now queued; the migration test covers it.
+- **Checks:**
+  - `tsc` and the `vite build` both pass; server tests 101 pass, 0 fail; web 1/1.
+  - **Not checked in a browser:** this machine has none set up. A quick look by the owner is the remaining check for "Done when: approve/reject/merge from the UI".
+- **Still open in P5:** moving `/chat` under `/x/` (it takes the namespace in the body, so it needs a new route shape, not just an alias).
+
+**In simple words:** the Review page now shows disagreeing facts side by side, with the words each came from, and four buttons: use the new one, keep the old one, keep both, or write a combined one. Every memory's page now has a "Why do I know this?" box saying where it came from and what has happened to it since.
