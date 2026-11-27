@@ -30,7 +30,7 @@ afterAll(async () => (await client.close(), server.stop(true), llm.stop(true)));
 test("lists upstream-compatible tools", async () => {
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
-    "add_memory", "forget_memory", "get_context", "get_document", "get_profile", "list_documents",
+    "add_memory", "explain_memory", "forget_memory", "get_context", "get_document", "get_profile", "list_documents",
     "list_memories", "list_spaces", "search_memory", "select_space", "who_am_i",
   ]);
 });
@@ -51,6 +51,7 @@ test("select space, add, search, profile, forget round-trip", async () => {
   expect(await call("get_context", { query: "what should I drink?" })).toContain("## About the user\n- The user prefers green tea over coffee");
   expect(await call("list_spaces")).toContain("personal (active): 1 documents, 1 memories");
   expect(await call("list_memories")).toContain(id);
+  expect(await call("explain_memory", { id })).toContain("Learned because");
 
   const docs = await call("list_documents");
   const docId = docs.match(/^- (\S+) \[/m)![1];

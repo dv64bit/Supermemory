@@ -698,3 +698,29 @@ Done when (PLAN.v2 §8): E2 retrieval beats the baseline (it does: recall@10 0.8
 - **Still to do:** `/chat` and `list/memories?inference=true` move with the rest of P5 (review inbox, provenance, `explain_memory`).
 
 **In simple words:** the extra features we added on top of the official API now live under one `/x/` prefix, and the old addresses still work.
+
+## 2026-11-27: P5 server, review inbox, explain, MCP `explain_memory`
+
+All the logic is in `server/src/review.ts`.
+
+- **`GET /ns/{ns}/x/review?status=open|approved|rejected|merged`:** lists review items, newest first. Each item has:
+  - the new memory and the one it conflicts with, side by side;
+  - for each: speaker, confidence, the source quote, valid from/to and the source document;
+  - the reason and confidence from dreaming;
+  - for inferences, the memories they were drawn from.
+- **`POST /ns/{ns}/x/review/{id}`:** resolves one item, in one transaction, with a `memory_event` per change.
+  - Inferences take `approve` (it becomes a trusted fact) or `reject`.
+  - Conflicts take:
+    - `keep_new`: the new memory becomes the next version in the old one's chain, and the old one ends;
+    - `keep_old`: the new one is rejected;
+    - `keep_both`: different contexts, both stay;
+    - `merge {content}`: one memory written by the user replaces both. It is pinned, so dreaming won't overwrite it.
+  - Errors: a wrong action for the kind gives 400; an item already resolved gives 409.
+- **`GET /ns/{ns}/x/memories/{id}/explain`:** "why do I know this?"
+  - a one-paragraph summary: who said it and the quote, the source document, true since, confidence, version, pinned;
+  - plus the dream run (pipeline version, models), the version chain, the memories an inference came from, the full event history and its review items.
+- **MCP `explain_memory`** formats the same for Claude Code.
+- **Tests:** 5 new E1 scenarios (each conflict action, merge, approving an inference, explain) and the MCP round trip. 101 pass, 0 fail.
+- **Still to do in P5:** the web review screen and the provenance panel, and moving `/chat` under `/x/`.
+
+**In simple words:** when the engine isn't sure whether a new fact should replace an old one, it now asks. You can keep the new one, keep the old one, keep both, or write one combined version yourself. For any memory you can also ask "why do you know this?" and get the exact words it came from, where and when. That also works from Claude Code.

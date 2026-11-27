@@ -4,6 +4,7 @@ import { sql, toVector } from "./db";
 import { embed } from "./embed";
 import { search } from "./search";
 import { assembleContext } from "./context";
+import { explainMemory, listReview, resolveReview, ReviewError } from "./review";
 import { compileFilter, filterSchema } from "./filter";
 import { LIVE, memoryJson, related } from "./memories";
 import { buckets, BUILTIN_BUCKETS, profile } from "./profile";
@@ -443,6 +444,30 @@ export function createApp(apiKey: string) {
       where pk = ${old.pk} returning *`;
     await logEvents([{ memoryPk: old.pk, action: "edit", actor: "user", before: { content: old.content, pinned: old.pinned }, after: { content: m.content, pinned } }]);
     return c.json({ ...memoryJson(m), pinned: m.pinned });
+  });
+
+  // Review inbox: what dreaming wouldn't decide alone (inferences, conflicts, unsure updates), resolved by a person.
+  app.get("/ns/:namespace/x/review", async (c) => {
+    const status = z.enum(["open", "approved", "rejected", "merged"]).default("open").parse(c.req.query("status"));
+    return c.json({ items: await listReview(ns(c), status) });
+  });
+  app.post("/ns/:namespace/x/review/:id", async (c) => {
+    const body = z.discriminatedUnion("action", [
+      z.object({ action: z.enum(["approve", "reject", "keep_new", "keep_old", "keep_both"]) }).strict(),
+      z.object({ action: z.literal("merge"), content: z.string().trim().min(1).max(2000) }).strict(),
+    ]).parse(await c.req.json());
+    try {
+      return c.json(await resolveReview(ns(c), c.req.param("id"), body));
+    } catch (e) {
+      if (e instanceof ReviewError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  });
+
+  // Provenance: why the engine knows this (source quote, speaker, run, versions, history, reviews).
+  app.get("/ns/:namespace/x/memories/:id/explain", async (c) => {
+    const out = await explainMemory(ns(c), c.req.param("id"));
+    return out ? c.json(out) : c.json({ error: "Memory not found" }, 404);
   });
 
   app.patch("/ns/:namespace/x/settings", async (c) => {

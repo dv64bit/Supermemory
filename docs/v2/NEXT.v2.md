@@ -16,7 +16,7 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 ## Next
 
-- **P5:** the review/conflict inbox + provenance UI + the `explain_memory` MCP tool. Also move the old extension routes (`/graph`, `/chat`, `/review`, `/restore`) under `/x/`, keeping aliases (GAP_REPORT §7).
+- **P5 (in progress):** server side done (review inbox, explain, `explain_memory`, routes under `/x/`). Left: the web review screen with keep new / keep old / keep both / merge, a "Why do I know this?" panel on memory details, and `/chat` under `/x/`.
 - **When a machine can run the 4b model:**
   - re-run `eval:e2` (extraction, relation, grounding) and compare with P1;
   - add the entity retrieval set (DEFERRED #7).

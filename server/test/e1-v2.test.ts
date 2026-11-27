@@ -399,6 +399,82 @@ test("paraphrase duplicates don't fill the results (MMR / dedupe)", async () => 
   expect(hiking).toHaveLength(1);
 });
 
+// ---------- Review inbox / provenance (P5) ----------
+
+// A low-confidence update queues a review item: both memories stay live until a person decides.
+async function conflictIn(ns: string) {
+  extractBy.set("E1-RV-A", () => [fact("Lena works at Contoso", { quote: "Lena works at Contoso" })]);
+  extractBy.set("E1-RV-B", () => [fact("Lena works at Fabrikam", { quote: "Lena works at Fabrikam" })]);
+  relateBy.set("Lena works at Fabrikam", (c) => ({ op: "UPDATE", target: c.neighbors[0].j, confidence: 0.5 }));
+  await add(ns, "User: E1-RV-A Lena works at Contoso.", { date: "2026-01-01T00:00:00Z" });
+  await add(ns, "User: E1-RV-B Lena works at Fabrikam.", { date: "2026-06-01T00:00:00Z" });
+  const { items } = (await (await fetch(`http://localhost:${server.port}/ns/${ns}/x/review`, { headers: { authorization: "Bearer k" } })).json()) as any;
+  expect(items).toHaveLength(1);
+  expect(items[0]).toMatchObject({ kind: "low_confidence", memory: { memory: "Lena works at Fabrikam", quote: "Lena works at Fabrikam" }, related: { memory: "Lena works at Contoso" } });
+  expect((await live(ns)).sort()).toEqual(["Lena works at Contoso", "Lena works at Fabrikam"]);
+  return items[0].id as string;
+}
+const resolve = (ns: string, id: string, body: Record<string, unknown>) => api(`/ns/${ns}/x/review/${id}`, body);
+
+test("review: keep_new makes the newer memory the next version; keep_old drops it; keep_both keeps both", async () => {
+  const a = await conflictIn("e1_rv_new");
+  expect((await resolve("e1_rv_new", a, { action: "keep_new" })).status).toBe(200);
+  expect(await live("e1_rv_new")).toEqual(["Lena works at Fabrikam"]);
+  expect(await memRow("e1_rv_new", "Lena works at Fabrikam")).toMatchObject({ version: 2, status: "active", is_latest: true });
+
+  const b = await conflictIn("e1_rv_old");
+  expect((await resolve("e1_rv_old", b, { action: "keep_old" })).status).toBe(200);
+  expect(await live("e1_rv_old")).toEqual(["Lena works at Contoso"]);
+
+  const c = await conflictIn("e1_rv_both");
+  expect((await resolve("e1_rv_both", c, { action: "keep_both" })).status).toBe(200);
+  expect((await live("e1_rv_both")).sort()).toEqual(["Lena works at Contoso", "Lena works at Fabrikam"]);
+  const done = (await (await fetch(`http://localhost:${server.port}/ns/e1_rv_both/x/review?status=approved`, { headers: { authorization: "Bearer k" } })).json()) as any;
+  expect(done.items[0]).toMatchObject({ id: c, resolution: "keep_both" });
+
+  expect((await resolve("e1_rv_both", c, { action: "keep_new" })).status).toBe(409); // already resolved
+  expect((await resolve("e1_rv_both", c, { action: "approve" })).status).toBe(400); // inference-only action
+});
+
+test("review: merge replaces both sides with one pinned memory written by the user", async () => {
+  const id = await conflictIn("e1_rv_merge");
+  const res = await resolve("e1_rv_merge", id, { action: "merge", content: "Lena moved from Contoso to Fabrikam in June 2026" });
+  expect(res.status).toBe(200);
+  expect(await live("e1_rv_merge")).toEqual(["Lena moved from Contoso to Fabrikam in June 2026"]);
+  expect(await memRow("e1_rv_merge", "Lena moved from Contoso to Fabrikam in June 2026")).toMatchObject({ pinned: true, speaker: "user", version: 2 });
+  const merged = ((await res.json()) as any).memory.id;
+  const why = (await (await fetch(`http://localhost:${server.port}/ns/e1_rv_merge/x/memories/${merged}/explain`, { headers: { authorization: "Bearer k" } })).json()) as any;
+  expect(why.summary).toContain("Written or edited by you.");
+  expect(why.versions.map((v: any) => v.memory)).toContain("Lena works at Contoso");
+});
+
+test("review: an inference is approved into a trusted fact", async () => {
+  await sql`insert into namespaces (id) values ('e1_rv_inf') on conflict do nothing`;
+  const { embed } = await import("../src/embed");
+  const { toVector } = await import("../src/db");
+  const [v] = await embed(["Alex probably runs marathons"]);
+  const [m] = await sql`insert into memories (ns, content, kind, is_inference, status, embedding)
+    values ('e1_rv_inf', 'Alex probably runs marathons', 'fact', true, 'pending_review', ${toVector(v)}::vector) returning pk`;
+  const [item] = await sql`insert into review_items (ns, kind, memory_pk) values ('e1_rv_inf', 'inference', ${m.pk}) returning id`;
+  expect((await resolve("e1_rv_inf", item.id, { action: "keep_new" })).status).toBe(400); // conflict-only action
+  expect((await resolve("e1_rv_inf", item.id, { action: "approve" })).status).toBe(200);
+  expect(await memRow("e1_rv_inf", "Alex probably runs marathons")).toMatchObject({ status: "active", is_inference: false });
+});
+
+test("explain: a dreamed memory says who said it, the quote, the source, the run and its history", async () => {
+  extractBy.set("E1-WHY", () => [fact("The user drinks oolong tea", { kind: "preference", quote: "I drink oolong tea" })]);
+  await add("e1_why", "User: E1-WHY I drink oolong tea every afternoon.", { id: "why-doc", date: "2026-02-01T00:00:00Z" });
+  const { id } = await memRow("e1_why", "The user drinks oolong tea");
+  const why = (await (await fetch(`http://localhost:${server.port}/ns/e1_why/x/memories/${id}/explain`, { headers: { authorization: "Bearer k" } })).json()) as any;
+  expect(why.summary).toContain('Learned because you said: "I drink oolong tea".');
+  expect(why.summary).toContain("(document why-doc)");
+  expect(why.summary).toContain("True since 2026-02-01");
+  expect(why.memory).toMatchObject({ speaker: "user", document: { id: "why-doc" } });
+  expect(why.learnedBy.dreamRun).toBeTruthy();
+  expect(why.history.map((e: any) => e.action)).toContain("create");
+  expect((await fetch(`http://localhost:${server.port}/ns/e1_why/x/memories/nope/explain`, { headers: { authorization: "Bearer k" } })).status).toBe(404);
+});
+
 // ---------- Re-dream ----------
 
 test.todo("re-dream into a shadow namespace produces a diff; swap keeps pinned memories and past review decisions");
