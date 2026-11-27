@@ -689,3 +689,12 @@ Done when (PLAN.v2 §8): E2 retrieval beats the baseline (it does: recall@10 0.8
 5. **Privacy:** health and money facts, and the documents they came from, stay out of the assistant's context unless you turn that on.
 6. **Matches the official API:** all 5 places where the API didn't match the official version are fixed.
 7. **A data bug found and fixed:** sometimes, saved test data got mixed up between rows. The likely cause was found and fixed, and the test now checks for it.
+
+## 2026-11-27: extension routes under /x/ (start of P5)
+
+- `graph`, `memories/{id}/restore` and `memories/{id}/review` are now served at `/ns/{ns}/x/...`, as PLAN.v2 §0 asks (GAP_REPORT §3). The old paths stay as aliases on the same handlers, so existing clients keep working.
+- The web app now calls the `/x/` paths.
+- The engine test checks that `/x/graph` and `/graph` return the same thing. 97 tests pass, 0 fail.
+- **Still to do:** `/chat` and `list/memories?inference=true` move with the rest of P5 (review inbox, provenance, `explain_memory`).
+
+**In simple words:** the extra features we added on top of the official API now live under one `/x/` prefix, and the old addresses still work.

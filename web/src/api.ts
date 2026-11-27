@@ -148,14 +148,14 @@ export const sm = {
     api<{ memories: Memory[] }>(`${ns(space)}/list/memories?limit=500&sort=updatedAt${inference ? "&inference=true" : ""}`, {
       body: { include: { forgotten } },
     }).then((r) => r.memories),
-  restore: (space: string, id: string) => api<Memory>(`${ns(space)}/memories/${encodeURIComponent(id)}/restore`, { body: {} }),
+  restore: (space: string, id: string) => api<Memory>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/restore`, { body: {} }),
   upload: (space: string, file: File, metadata?: Record<string, unknown>) => {
     const fd = new FormData();
     fd.append("file", file);
     if (metadata) fd.append("metadata", JSON.stringify(metadata));
     return api<{ id: string; status: Status }>(`${ns(space)}/document/file`, { body: fd });
   },
-  graph: (space: string, limit = 300) => api<Graph>(`${ns(space)}/graph?limit=${limit}`),
+  graph: (space: string, limit = 300) => api<Graph>(`${ns(space)}/x/graph?limit=${limit}`),
   memory: (space: string, id: string) => api<MemoryDetail>(`${ns(space)}/memories/${encodeURIComponent(id)}`),
   forget: (space: string, ids: string[]) => api(`${ns(space)}/memories`, { method: "DELETE", body: { ids } }),
   search: (space: string, query: string, searchMode: "hybrid" | "memories" | "chunks") =>
@@ -163,7 +163,7 @@ export const sm = {
       body: { query, searchMode, limit: 20, threshold: 0.3, include: { documents: true, related: false, forgotten: false } },
     }),
   review: (space: string, id: string, action: "approve" | "decline") =>
-    api<Memory>(`${ns(space)}/memories/${encodeURIComponent(id)}/review`, { body: { action } }),
+    api<Memory>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/review`, { body: { action } }),
   profile: (space: string) => api<{ profile: Profile }>(`${ns(space)}/profile`, { body: {} }).then((r) => r.profile),
 };
 

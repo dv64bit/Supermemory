@@ -278,7 +278,8 @@ export function createApp(apiKey: string) {
     return c.json(await forgetSemantic(n, query, dryRun));
   });
 
-  app.post("/ns/:namespace/memories/:id/restore", async (c) => {
+  // v2 extensions live under /x/; the old paths stay as aliases for existing clients.
+  app.on("POST", ["/ns/:namespace/x/memories/:id/restore", "/ns/:namespace/memories/:id/restore"], async (c) => {
     const [m] = await sql`update memories set is_forgotten = false, forget_reason = null, forget_after = null, updated_at = now()
       where ns = ${ns(c)} and id = ${c.req.param("id")} returning *`;
     if (!m) return c.json({ error: "Memory not found" }, 404);
@@ -287,7 +288,7 @@ export function createApp(apiKey: string) {
   });
 
   // Inferred-memory review (not in v5; v3 had it): approve keeps it as a trusted fact, decline forgets it.
-  app.post("/ns/:namespace/memories/:id/review", async (c) => {
+  app.on("POST", ["/ns/:namespace/x/memories/:id/review", "/ns/:namespace/memories/:id/review"], async (c) => {
     const n = ns(c);
     const { action } = z.object({ action: z.enum(["approve", "decline"]) }).strict().parse(await c.req.json());
     const [m] = action === "approve"
@@ -401,7 +402,7 @@ export function createApp(apiKey: string) {
   app.get("/namespaces", nsList);
 
   // Graph for the UI: non-forgotten memories (old versions too, so update chains show) + their documents.
-  app.get("/ns/:namespace/graph", async (c) => {
+  app.on("GET", ["/ns/:namespace/x/graph", "/ns/:namespace/graph"], async (c) => {
     const n = ns(c);
     const limit = z.coerce.number().int().min(1).max(2000).default(300).parse(c.req.query("limit"));
     const mems = await sql`select pk, id, content, kind, is_latest, is_inference, version, created_at, source_document_pk

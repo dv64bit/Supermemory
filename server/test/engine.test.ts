@@ -206,6 +206,8 @@ test("graph returns memory + document nodes and typed edges", async () => {
   const ids = new Set(g.nodes.map((n: any) => n.id));
   expect(g.edges.every((e: any) => ids.has(e.source) && ids.has(e.target))).toBe(true);
   expect(g.nodes.find((n: any) => n.type === "memory" && n.label?.includes("Google"))?.isLatest).toBe(false); // old version kept for the chain
+  // The extension's home is /x/graph; /graph stays as an alias.
+  expect(await (await api(`/ns/${NS}/x/graph`)).json()).toEqual(g);
 });
 
 test("chat streams context + reply over SSE and saves the conversation as memory", async () => {
