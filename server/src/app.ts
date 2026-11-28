@@ -5,6 +5,7 @@ import { embed } from "./embed";
 import { search } from "./search";
 import { assembleContext } from "./context";
 import { explainMemory, listReview, resolveReview, ReviewError } from "./review";
+import { discardRedream, latestRedream, RedreamError, startRedream, swapRedream } from "./redream";
 import { compileFilter, filterSchema } from "./filter";
 import { LIVE, memoryJson, related } from "./memories";
 import { buckets, BUILTIN_BUCKETS, profile } from "./profile";
@@ -390,7 +391,8 @@ export function createApp(apiKey: string) {
       select n.*, (select count(*)::int from documents d where d.ns = n.id) as doc_count,
         (select count(*)::int from memories m where m.ns = n.id and m.is_latest and not m.is_forgotten) as mem_count,
         count(*) over () as total
-      from namespaces n order by n.created_at desc limit ${q.limit} offset ${(q.page - 1) * q.limit}`;
+      from namespaces n where n.id not like '%:shadow' -- a re-dream's working copy (redream.ts), not a space of its own
+      order by n.created_at desc limit ${q.limit} offset ${(q.page - 1) * q.limit}`;
     return c.json({
       namespaces: rows.map((r: any) => ({
         id: r.id, namespace: r.id, description: r.supporting_context, documentCount: r.doc_count, memoryCount: r.mem_count,
@@ -469,6 +471,20 @@ export function createApp(apiKey: string) {
     const out = await explainMemory(ns(c), c.req.param("id"));
     return out ? c.json(out) : c.json({ error: "Memory not found" }, 404);
   });
+
+  // Re-dream: replay every document through the current pipeline into a shadow space, review the diff, then swap.
+  const redreamed = async (c: Context, f: () => Promise<unknown>, status: 200 | 202 = 200) => {
+    try {
+      return c.json(await f(), status);
+    } catch (e) {
+      if (e instanceof RedreamError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  };
+  app.post("/ns/:namespace/x/redream", (c) => redreamed(c, () => startRedream(ns(c)), 202));
+  app.get("/ns/:namespace/x/redream", async (c) => c.json(await latestRedream(ns(c)))); // null before the first one
+  app.post("/ns/:namespace/x/redream/swap", (c) => redreamed(c, () => swapRedream(ns(c))));
+  app.delete("/ns/:namespace/x/redream", (c) => redreamed(c, () => discardRedream(ns(c))));
 
   app.patch("/ns/:namespace/x/settings", async (c) => {
     const n = ns(c);

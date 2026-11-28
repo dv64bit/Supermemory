@@ -228,6 +228,16 @@ test("chat streams context + reply over SSE and saves the conversation as memory
   expect(doc.content).toContain("Assistant: Echo: you work at Stripe");
 });
 
+test("chat also lives at /ns/{ns}/x/chat, namespace from the path", async () => {
+  const res = await api(`/ns/${NS}/x/chat`, { method: "POST", body: JSON.stringify({ messages: [{ role: "user", content: "Where do I work? Stripe?" }] }) });
+  const text = await res.text();
+  expect(text).toContain("event: context");
+  expect(text).toContain("event: delta");
+  expect(text).toContain("event: done");
+  expect((await api(`/ns/${NS}/x/chat`, { method: "POST", body: JSON.stringify({ namespace: NS, messages: [{ role: "user", content: "hi" }] }) })).status).toBe(400);
+  await drain();
+});
+
 test("an expiry at or before the document date is ignored (lasting fact stays live)", async () => {
   await add("Alex moved from Pune to Berlin last year.", { date: "2026-03-01T09:00:00Z" });
   const { sweep } = await import("../src/lifecycle");

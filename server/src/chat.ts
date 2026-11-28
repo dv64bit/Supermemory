@@ -1,18 +1,20 @@
 // Chat with memory: the assembled context (profile, relevant memories, document chunks; sensitive memories only if the
 // namespace allows) goes into the system prompt, the reply streams back as SSE, and the conversation is saved as a
 // document so it becomes memory too (what upstream's withSupermemory does).
-import type { Hono } from "hono";
+import type { Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
 import { stream as llmStream, type ChatMessage } from "./llm";
 import { redact } from "./guard";
 import { assembleContext } from "./context";
 
+const nsParam = z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/);
 const body = z.object({
-  namespace: z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/),
   conversationId: z.string().min(1).max(200).regex(/^[a-zA-Z0-9_-]+$/).optional(),
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(50_000) })).min(1).max(200),
 }).strict().refine((b) => b.messages.at(-1)!.role === "user", { message: "last message must be from the user" });
+// The original route takes the namespace in the body; POST /ns/{ns}/x/chat takes it from the path.
+const legacyBody = z.object({ namespace: nsParam }).passthrough();
 
 const CONTEXT_BUDGET = 1500; // tokens
 const PING_MS = 5000;
@@ -33,9 +35,14 @@ export function mountChat(app: Hono, apiKey: string) {
     return res.json();
   };
 
+  app.post("/ns/:namespace/x/chat", async (c) => handle(c, nsParam.parse(c.req.param("namespace")), body.parse(await c.req.json())));
   app.post("/chat", async (c) => {
-    const parsed = body.parse(await c.req.json());
-    const { namespace: ns, conversationId } = parsed;
+    const { namespace, ...rest } = legacyBody.parse(await c.req.json());
+    return handle(c, namespace, body.parse(rest));
+  });
+
+  const handle = async (c: Context, ns: string, parsed: z.infer<typeof body>) => {
+    const { conversationId } = parsed;
     const messages = parsed.messages.map((m) => ({ ...m, content: redact(m.content).text }));
     const cid = conversationId ?? crypto.randomUUID();
     const last = messages.at(-1)!.content;
@@ -69,5 +76,5 @@ export function mountChat(app: Hono, apiKey: string) {
       await call("POST", `/ns/${ns}/document`, { id: `chat-${cid}`, content: transcript, metadata: { source: "chat" } })
         .catch((e) => console.error("chat save", e));
     });
-  });
+  };
 }

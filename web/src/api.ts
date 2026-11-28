@@ -78,6 +78,16 @@ export type ReviewItem = {
   reason: string | null; confidence: number | null; resolution: string | null;
   memory: ReviewMemory; related: ReviewMemory | null; from: ReviewMemory[];
 };
+export type Redream = {
+  id: string; status: "running" | "ready" | "failed" | "swapped" | "discarded" | "interrupted"; shadow: string; pipelineVersion: string;
+  total: number; done: number; failed: number; archive: string | null; error: string | null; startedAt: string; finishedAt: string | null;
+  report: null | {
+    before: number; after: number; unchanged: number; openReviews: number;
+    added: { id: string; memory: string }[]; removed: { id: string; memory: string }[];
+    changed: { before: { id: string; memory: string }; after: { id: string; memory: string } }[];
+    edges: Record<string, { before: number; after: number }>;
+  };
+};
 export type ReviewAction =
   | { action: "approve" | "reject" | "keep_new" | "keep_old" | "keep_both" }
   | { action: "merge"; content: string };
@@ -191,6 +201,10 @@ export const sm = {
   resolve: (space: string, id: string, body: ReviewAction) =>
     api<{ status: string; memory: { id: string; memory: string } }>(`${ns(space)}/x/review/${encodeURIComponent(id)}`, { body }),
   explain: (space: string, id: string) => api<Explanation>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/explain`),
+  redream: (space: string) => api<Redream | null>(`${ns(space)}/x/redream`),
+  startRedream: (space: string) => api<Redream>(`${ns(space)}/x/redream`, { body: {} }),
+  swapRedream: (space: string) => api<Redream>(`${ns(space)}/x/redream/swap`, { body: {} }),
+  discardRedream: (space: string) => api<Redream>(`${ns(space)}/x/redream`, { method: "DELETE" }),
   profile: (space: string) => api<{ profile: Profile }>(`${ns(space)}/profile`, { body: {} }).then((r) => r.profile),
 };
 
@@ -206,14 +220,15 @@ export type ChatEvent =
   | { event: "context"; data: ChatContext }
   | { event: "delta"; data: { text: string } }
   | { event: "done"; data: { conversationId: string } }
-  | { event: "error"; data: { error: string } };
+  | { event: "error"; data: { error: string } }
+  | { event: "ping"; data: Record<string, never> }; // keepalive while the model warms up
 
-/** POST /chat and yield parsed SSE events. EventSource can't POST, so this reads the body stream by hand. */
+/** POST /ns/{ns}/x/chat and yield parsed SSE events. EventSource can't POST, so this reads the body stream by hand. */
 export async function* chat(
-  body: { namespace: string; conversationId?: string; messages: ChatMsg[] },
+  { namespace, ...body }: { namespace: string; conversationId?: string; messages: ChatMsg[] },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
-  const res = await req("/chat", { body, signal });
+  const res = await req(`${ns(namespace)}/x/chat`, { body, signal });
   const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
   let buf = "";
   for (;;) {

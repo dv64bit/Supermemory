@@ -757,3 +757,58 @@ All the logic is in `server/src/review.ts`.
 - **Local setup:** `server/.env` now has `DATABASE_URL` for a local `supermem` database (git-ignored).
 
 **In simple words:** the chat page was hanging because the server gave up after 10 seconds of silence, while the AI needed over a minute to start answering. Chat now keeps the connection alive while it waits, so replies come through. They're still slow on this computer: about 1–2 minutes for the first reply.
+
+## 2026-11-27: P5 done, /x/chat, demo data, screens checked in a browser
+
+- **`POST /ns/{ns}/x/chat`:** chat under `/x/`, with the namespace taken from the path. The body is `{conversationId?, messages}`; sending `namespace` in the body is a 400. `/chat` stays as an alias with the old body. The web app uses `/x/chat`, and the client types know the `ping` event.
+- **`bun run seed:demo`** (`server/src/seed-demo.ts`): a `demo` space with two chats, 5 memories with quotes and dates, one low-confidence disagreement (Contoso → Northwind) and one inference. It uses no LLM and touches only `demo`; re-running starts that space over.
+- **Explain wording:** "Source: document chat-demo-1." when the document has no title (it was "Source: (document …)").
+- **Checked in headless Chromium** (Playwright's, already installed), on the demo space:
+  - the Review page renders the disagreement side by side, with quotes, the four buttons and the merge editor, plus the inference with what it came from;
+  - the memory page shows "Why do I know this?";
+  - there were no console errors;
+  - clicking *Use new* and *Keep* in the browser resolved both items: Contoso is no longer current, and Northwind became version 2.
+- **P5 "done when":** approve/reject/merge from the UI (checked as above, and merge by test); explain works from Claude Code (MCP `explain_memory`, tested). 102 tests pass, 0 fail.
+
+**In simple words:** the review screen and "Why do I know this?" were tried in a real browser, buttons included, and they work. There's now a one-command demo space (`bun run seed:demo`) to try them without waiting for the AI. P5 is done.
+
+## 2026-11-28: P6, re-dream with a shadow diff
+
+Done when (PLAN.v2 §8): prompt change → diff report → swap. Both E1 scenarios show it with a changed extractor.
+
+**How it works** (`server/src/redream.ts`, migration `0006_redream`: a `redreams` row per run)
+
+1. **Start, `POST /ns/{ns}/x/redream`:** makes a shadow space `{ns}:shadow` holding:
+   - copies of the space's settings, buckets and documents (current content, not yet dreamed, never queued for the worker);
+   - the user's pinned memories, unchanged, so dreaming relates against them as it would live.
+2. **Replay, in the background:** `dream()` runs on each shadow document in event-time order (`coalesce(doc_date, created_at)`). Progress (`done/total/failed`) is shown by `GET /ns/{ns}/x/redream`, which returns `null` before the first run. A run cut off by a restart shows as `interrupted`.
+3. **Carry the user's decisions:**
+   - every resolved review item is re-applied to the shadow item about the same memories (matched on normalised text), with the same action, merge text included, through `resolveReview`;
+   - memories the user forgot or rejected outside the inbox are forgotten again.
+4. **Report:**
+   - added, removed and changed memories; "changed" pairs a removed and an added memory with cosine ≥ 0.85 or the same subject + slot;
+   - edge counts by relation, before and after;
+   - the number of open reviews left in the shadow.
+5. **`POST …/x/redream/swap`:**
+   - the old memories, review items, entities and dream runs move to an archive space `{ns}:archive-<run id>`; nothing is deleted;
+   - the shadow's move in, re-pointed at the space's own documents; document `dreamed_*` is updated; the shadow is dropped.
+   - The swap is refused (409) if a document was added, changed or deleted since the run started.
+6. **`DELETE …/x/redream`** discards the shadow.
+
+**Also**
+
+- Shadow spaces are hidden from `GET /ns`; archive spaces stay visible.
+- Web: Settings has a "Re-dream" card: start, a progress bar, the report (changed old → new, new, gone), and **Swap in** / **Discard**.
+- Checked in headless Chromium against the fake LLM on the `demo` space: start → report → Swap in → archived. No console errors.
+- **Tests:** two E1 scenarios replace the last `test.todo`.
+  1. A better extractor turns "likes tea" into "likes green tea" (changed) and adds a fact. The pinned edit survives; the user's earlier "keep existing" decision is re-applied automatically (0 open reviews); after the swap, the old memories are in the archive and new memories point at the space's documents.
+  2. A swap after a document was added, or deleted, is refused, and discard removes the shadow.
+  - Server 104 pass, 0 fail, 0 todo.
+
+**Limits**
+
+- Re-dreaming calls the LLM for every document. On this machine (qwen3 on CPU) that is minutes per document, and a real run hasn't been timed here. The LLM cache only helps where the prompt, the model and the input are all unchanged.
+- `dream_runs.document_pks` in swapped-in runs still name the dropped shadow documents.
+- Decisions are matched on exact (normalised) memory text: if the new pipeline words a fact differently, the user's old decision on it doesn't carry over, and it comes back as an open review.
+
+**In simple words:** when the prompts or the AI model get better, you can now press "Re-dream". It re-reads all your chats and documents into a separate copy and shows a list: these facts would change, these are new, these would disappear. If you like it, press "Swap in"; your old memories are kept in an archive, not deleted. Anything you edited yourself, and decisions you made in Review, carry over. If you don't like it, press "Discard" and nothing changes.

@@ -136,7 +136,7 @@ export async function explainMemory(ns: string, id: string) {
   const summary = [
     m.is_inference ? `Inferred from ${derivedFrom.length} other memories${m.status === "pending_review" ? ", not yet confirmed" : ""}.`
       : m.pinned && !m.source_document_pk ? "Written or edited by you." : `Learned because ${said}${source.quote ? `: "${source.quote}"` : ""}.`,
-    source.document ? `Source: ${source.document.title ? `"${source.document.title}" ` : ""}(document ${source.document.id}).` : null,
+    source.document ? `Source: ${source.document.title ? `"${source.document.title}" (document ${source.document.id})` : `document ${source.document.id}`}.` : null,
     m.valid_from ? `True since ${iso(m.valid_from)!.slice(0, 10)}${m.valid_to ? `, until ${iso(m.valid_to)!.slice(0, 10)}` : ""}.` : null,
     m.confidence != null ? `Confidence ${Number(m.confidence).toFixed(2)}.` : null,
     versions.length > 1 ? `Version ${m.version} of ${versions.length}.` : null,

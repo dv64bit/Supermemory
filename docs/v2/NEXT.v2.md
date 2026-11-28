@@ -2,21 +2,24 @@
 
 This file is overwritten as work moves. History lives in `DEVLOG.md`; things skipped on purpose live in `DEFERRED.md`. Supersedes `NEXT.md`.
 
-## Current state (2026-11-25)
+## Current state (2026-11-28)
 
-- **Phase:** P4 (Retrieval v2, `x/context`, `as_of`, latency, v5 mismatches) is done and waits for the owner's commit. P3 fixes were committed as `1b8f0e7`.
+- **Phase:** P1–P6 are built. P5's completion and P6 (re-dream) wait for the owner's commit.
 - **Numbers:**
   - retrieval recall@10 0.955 (P1 0.844);
   - latency in budget at 100k (search p95 209 / 98 ms, profile 34 ms, `x/context` 222 ms).
   - Details: BASELINE.md, "P4 results".
-- **Tests:** E1 97 pass, 0 fail, 1 todo (re-dream, P6), 0 targets open. Web 1/1.
+- **Tests:** server 104 pass, 0 fail, 0 todo, 0 targets open. Web 1/1.
+- **Try the screens:** `cd server && bun run seed:demo`, then pick the `demo` space (Review, any memory, Settings → Re-dream).
 - **Not measured:** P3's LLM steps with a real model since the fixes. This machine (WSL, 4.9 GB RAM) can't run `qwen3:4b-instruct` usefully.
 - **Open risk:** DEFERRED #9, the Bun SQL parameter mix-up. It is mitigated, but the root cause isn't confirmed.
-- **LLM:** local Ollama only. **DB:** local role `supermem`, URLs in `server/.env`.
+- **LLM:** local Ollama only (`LLM_MODEL` in `server/.env`). **DB:** local role `supermem`; `DATABASE_URL` and the test/eval URLs are in `server/.env`.
 
 ## Next
 
-- **P5 (nearly done):** server and web are built (review inbox with keep new / keep old / keep both / merge, the "Why do I know this?" panel, `explain_memory`, routes under `/x/`). Left: the owner checks the screens in a browser, and `/chat` moves under `/x/`.
+- **P5 done** (2026-11-27): the review inbox with keep new / keep old / keep both / merge, "Why do I know this?", `explain_memory`, all extensions under `/x/`. Try it with `bun run seed:demo` (space `demo`).
+- **P6 done** (2026-11-28): re-dream into `{ns}:shadow`, diff report, swap (old memories archived) or discard; Settings → Re-dream.
+- **Next: P7**, the browser extension fork (steps below, under "Parked"). Also still open: DEFERRED #9 (Bun SQL repro), and real-model evals once a machine can run the 4b model.
 - **When a machine can run the 4b model:**
   - re-run `eval:e2` (extraction, relation, grounding) and compare with P1;
   - add the entity retrieval set (DEFERRED #7).

@@ -467,7 +467,7 @@ test("explain: a dreamed memory says who said it, the quote, the source, the run
   const { id } = await memRow("e1_why", "The user drinks oolong tea");
   const why = (await (await fetch(`http://localhost:${server.port}/ns/e1_why/x/memories/${id}/explain`, { headers: { authorization: "Bearer k" } })).json()) as any;
   expect(why.summary).toContain('Learned because you said: "I drink oolong tea".');
-  expect(why.summary).toContain("(document why-doc)");
+  expect(why.summary).toContain("Source: document why-doc.");
   expect(why.summary).toContain("True since 2026-02-01");
   expect(why.memory).toMatchObject({ speaker: "user", document: { id: "why-doc" } });
   expect(why.learnedBy.dreamRun).toBeTruthy();
@@ -477,4 +477,83 @@ test("explain: a dreamed memory says who said it, the quote, the source, the run
 
 // ---------- Re-dream ----------
 
-test.todo("re-dream into a shadow namespace produces a diff; swap keeps pinned memories and past review decisions");
+const getJson = async (path: string) => (await (await fetch(`http://localhost:${server.port}${path}`, { headers: { authorization: "Bearer k" } })).json()) as any;
+async function redreamed(ns: string) {
+  expect((await api(`/ns/${ns}/x/redream`, {})).status).toBe(202);
+  for (let i = 0; i < 300; i++) {
+    const r = await getJson(`/ns/${ns}/x/redream`);
+    if (r.status !== "running") return r;
+    await Bun.sleep(100);
+  }
+  throw new Error("re-dream did not finish");
+}
+
+test("re-dream into a shadow namespace produces a diff; swap keeps pinned memories and past review decisions", async () => {
+  const NS = "e1_rd";
+  // The default fake relate calls everything an UPDATE of its nearest neighbour; in the shadow the pinned Acme memory
+  // is there from the start, so the unrelated facts are scripted as ADD.
+  relateBy.set("Lena works at Contoso", () => ({ op: "ADD", target: null }));
+  relateBy.set("likes", () => ({ op: "ADD", target: null }));
+  relateBy.set("Alex manages", () => ({ op: "ADD", target: null }));
+  relateBy.set("Alex works at Acme", (c) => {
+    const j = c.neighbors.find((n) => n.content.includes("Acme"))?.j;
+    return j === undefined ? { op: "ADD", target: null } : { op: "DUPLICATE", target: j };
+  });
+  // Before: a disagreement the user settled (kept the existing job), a fact, and a memory the user edited (pinned).
+  const item = await conflictIn(NS);
+  expect((await resolve(NS, item, { action: "keep_old" })).status).toBe(200);
+  extractBy.set("E1-RD-TEA", () => [fact("The user likes tea", { kind: "preference" })]);
+  extractBy.set("E1-RD-JOB", () => [fact("Alex works at Acme")]);
+  await add(NS, "User: E1-RD-TEA I like tea.");
+  await add(NS, "User: E1-RD-JOB Alex is my manager at Acme.");
+  const { id: acme } = await memRow(NS, "Alex works at Acme");
+  expect((await api(`/ns/${NS}/x/memories/${acme}`, { content: "Alex works at Acme Corp" }, "PATCH")).status).toBe(200);
+  const before = (await live(NS)).sort();
+  expect(before).toEqual(["Alex works at Acme Corp", "Lena works at Contoso", "The user likes tea"]);
+
+  // A better extractor (a prompt change would also change the cache key; here the cache is bypassed instead).
+  extractBy.set("E1-RD-TEA", () => [fact("The user likes green tea", { kind: "preference" })]);
+  extractBy.set("E1-RD-JOB", () => [fact("Alex works at Acme"), fact("Alex manages the user")]);
+  process.env.LLM_CACHE = "off";
+  const r = await redreamed(NS).finally(() => delete process.env.LLM_CACHE);
+  expect(r).toMatchObject({ status: "ready", total: 4, done: 4, failed: 0, shadow: "e1_rd:shadow" });
+  expect(r.report.changed.map((c: any) => [c.before.memory, c.after.memory])).toEqual([["The user likes tea", "The user likes green tea"]]);
+  expect(r.report.added.map((m: any) => m.memory)).toEqual(["Alex manages the user"]);
+  expect(r.report.removed).toEqual([]);
+  expect(r.report.openReviews).toBe(0); // the Fabrikam disagreement came back and was settled the same way
+  expect((await live(NS)).sort()).toEqual(before); // nothing changes until the swap
+
+  const swapped = await (await api(`/ns/${NS}/x/redream/swap`, {})).json() as any;
+  expect(swapped.status).toBe("swapped");
+  expect((await live(NS)).sort()).toEqual(["Alex manages the user", "Alex works at Acme Corp", "Lena works at Contoso", "The user likes green tea"]);
+  expect(await memRow(NS, "Alex works at Acme Corp")).toMatchObject({ pinned: true });
+  expect((await getJson(`/ns/${NS}/x/review`)).items).toEqual([]);
+  expect((await live(swapped.archive)).sort()).toEqual(before); // the old memories are archived, not deleted
+  const green = await memRow(NS, "The user likes green tea");
+  const [doc] = await sql`select id, ns from documents where pk = ${green.source_document_pk}`;
+  expect(doc.ns).toBe(NS); // points at the space's own document, not the dropped shadow copy
+  expect((await sql`select 1 from namespaces where id = 'e1_rd:shadow'`).length).toBe(0);
+}, 60_000);
+
+test("re-dream: a swap is refused when documents changed meanwhile; discard drops the shadow", async () => {
+  const NS = "e1_rd2";
+  expect(await getJson(`/ns/${NS}/x/redream`)).toBeNull(); // none yet
+  extractBy.set("E1-RD2", () => [fact("Pat likes jazz", { kind: "preference" })]);
+  relateBy.set("Pat likes", () => ({ op: "ADD", target: null }));
+  await add(NS, "User: E1-RD2 Pat likes jazz.");
+  expect((await redreamed(NS)).status).toBe("ready");
+  await add(NS, "User: E1-RD2 Pat also likes blues.", { id: "late" });
+  const spaces = (await getJson("/ns?limit=100")).namespaces.map((n: any) => n.id);
+  expect(spaces).toContain(NS);
+  expect(spaces).not.toContain(`${NS}:shadow`); // the working copy is not listed as a space
+  const refused = await api(`/ns/${NS}/x/redream/swap`, {});
+  expect(refused.status).toBe(409);
+  expect(((await refused.json()) as any).error).toContain("since the re-dream started");
+  // Deleting a document after the run is refused the same way (its memories would otherwise come back).
+  expect((await redreamed(NS)).status).toBe("ready");
+  expect((await api(`/ns/${NS}/document`, { ids: ["late"] }, "DELETE")).status).toBe(200);
+  expect((await api(`/ns/${NS}/x/redream/swap`, {})).status).toBe(409);
+  expect((await api(`/ns/${NS}/x/redream`, {}, "DELETE")).status).toBe(200);
+  expect((await getJson(`/ns/${NS}/x/redream`)).status).toBe("discarded");
+  expect((await sql`select 1 from namespaces where id = 'e1_rd2:shadow'`).length).toBe(0);
+}, 60_000);
