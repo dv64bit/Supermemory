@@ -67,6 +67,39 @@ export type MemoryDetail = Memory & {
 
 export type Chunk = { id: string; position: number; content: string };
 
+/** One side of a review item, or the memory being explained (GET /x/review, /x/memories/{id}/explain). */
+export type ReviewMemory = {
+  id: string; memory: string; kind: string; speaker: string | null; confidence: number | null; quote: string | null;
+  validFrom: string | null; validTo: string | null; isLatest: boolean; status: string; pinned: boolean;
+  document: { id: string; title: string | null } | null;
+};
+export type ReviewItem = {
+  id: string; kind: "inference" | "conflict" | "low_confidence"; status: string; createdAt: string;
+  reason: string | null; confidence: number | null; resolution: string | null;
+  memory: ReviewMemory; related: ReviewMemory | null; from: ReviewMemory[];
+};
+export type Redream = {
+  id: string; status: "running" | "ready" | "failed" | "swapped" | "discarded" | "interrupted"; shadow: string; pipelineVersion: string;
+  total: number; done: number; failed: number; archive: string | null; error: string | null; startedAt: string; finishedAt: string | null;
+  report: null | {
+    before: number; after: number; unchanged: number; openReviews: number;
+    added: { id: string; memory: string }[]; removed: { id: string; memory: string }[];
+    changed: { before: { id: string; memory: string }; after: { id: string; memory: string } }[];
+    edges: Record<string, { before: number; after: number }>;
+  };
+};
+export type ReviewAction =
+  | { action: "approve" | "reject" | "keep_new" | "keep_old" | "keep_both" }
+  | { action: "merge"; content: string };
+export type Explanation = {
+  summary: string;
+  memory: ReviewMemory & { version: number; isInference: boolean; learnedAt: string | null };
+  learnedBy: { dreamRun: string; pipelineVersion: string; models: string[]; at: string } | null;
+  derivedFrom: { id: string; memory: string }[];
+  versions: { id: string; memory: string; version: number; isLatest: boolean; validFrom: string | null; validTo: string | null }[];
+  history: { action: string; actor: string; reason: string | null; at: string }[];
+};
+
 export type SearchResult = {
   id: string;
   memory?: string;
@@ -145,17 +178,17 @@ export const sm = {
   deleteDocuments: (space: string, ids: string[]) => api(`${ns(space)}/document`, { method: "DELETE", body: { ids } }),
   memories: (space: string, forgotten: boolean, inference = false) =>
     // ponytail: one page of 500; paginate when a space outgrows it
-    api<{ memories: Memory[] }>(`${ns(space)}/list/memories?limit=500${inference ? "&inference=true" : ""}`, {
+    api<{ memories: Memory[] }>(`${ns(space)}/list/memories?limit=500&sort=updatedAt${inference ? "&inference=true" : ""}`, {
       body: { include: { forgotten } },
     }).then((r) => r.memories),
-  restore: (space: string, id: string) => api<Memory>(`${ns(space)}/memories/${encodeURIComponent(id)}/restore`, { body: {} }),
+  restore: (space: string, id: string) => api<Memory>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/restore`, { body: {} }),
   upload: (space: string, file: File, metadata?: Record<string, unknown>) => {
     const fd = new FormData();
     fd.append("file", file);
     if (metadata) fd.append("metadata", JSON.stringify(metadata));
     return api<{ id: string; status: Status }>(`${ns(space)}/document/file`, { body: fd });
   },
-  graph: (space: string, limit = 300) => api<Graph>(`${ns(space)}/graph?limit=${limit}`),
+  graph: (space: string, limit = 300) => api<Graph>(`${ns(space)}/x/graph?limit=${limit}`),
   memory: (space: string, id: string) => api<MemoryDetail>(`${ns(space)}/memories/${encodeURIComponent(id)}`),
   forget: (space: string, ids: string[]) => api(`${ns(space)}/memories`, { method: "DELETE", body: { ids } }),
   search: (space: string, query: string, searchMode: "hybrid" | "memories" | "chunks") =>
@@ -163,7 +196,15 @@ export const sm = {
       body: { query, searchMode, limit: 20, threshold: 0.3, include: { documents: true, related: false, forgotten: false } },
     }),
   review: (space: string, id: string, action: "approve" | "decline") =>
-    api<Memory>(`${ns(space)}/memories/${encodeURIComponent(id)}/review`, { body: { action } }),
+    api<Memory>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/review`, { body: { action } }),
+  reviewItems: (space: string) => api<{ items: ReviewItem[] }>(`${ns(space)}/x/review`).then((r) => r.items),
+  resolve: (space: string, id: string, body: ReviewAction) =>
+    api<{ status: string; memory: { id: string; memory: string } }>(`${ns(space)}/x/review/${encodeURIComponent(id)}`, { body }),
+  explain: (space: string, id: string) => api<Explanation>(`${ns(space)}/x/memories/${encodeURIComponent(id)}/explain`),
+  redream: (space: string) => api<Redream | null>(`${ns(space)}/x/redream`),
+  startRedream: (space: string) => api<Redream>(`${ns(space)}/x/redream`, { body: {} }),
+  swapRedream: (space: string) => api<Redream>(`${ns(space)}/x/redream/swap`, { body: {} }),
+  discardRedream: (space: string) => api<Redream>(`${ns(space)}/x/redream`, { method: "DELETE" }),
   profile: (space: string) => api<{ profile: Profile }>(`${ns(space)}/profile`, { body: {} }).then((r) => r.profile),
 };
 
@@ -179,14 +220,15 @@ export type ChatEvent =
   | { event: "context"; data: ChatContext }
   | { event: "delta"; data: { text: string } }
   | { event: "done"; data: { conversationId: string } }
-  | { event: "error"; data: { error: string } };
+  | { event: "error"; data: { error: string } }
+  | { event: "ping"; data: Record<string, never> }; // keepalive while the model warms up
 
-/** POST /chat and yield parsed SSE events. EventSource can't POST, so this reads the body stream by hand. */
+/** POST /ns/{ns}/x/chat and yield parsed SSE events. EventSource can't POST, so this reads the body stream by hand. */
 export async function* chat(
-  body: { namespace: string; conversationId?: string; messages: ChatMsg[] },
+  { namespace, ...body }: { namespace: string; conversationId?: string; messages: ChatMsg[] },
   signal?: AbortSignal,
 ): AsyncGenerator<ChatEvent> {
-  const res = await req("/chat", { body, signal });
+  const res = await req(`${ns(namespace)}/x/chat`, { body, signal });
   const reader = res.body!.pipeThrough(new TextDecoderStream()).getReader();
   let buf = "";
   for (;;) {

@@ -414,3 +414,16 @@ a.fact:hover { background: var(--card-hover); }
 .graph-legend .bar { width: 14px; height: 2px; border-radius: 2px; }
 .graph-legend .hint { color: var(--faint); }
 @media (max-width: 760px) { .graph-page { padding: 20px 16px; } .graph-legend .hint { display: none; } }
+
+/* Review: conflict cards (two sides, the source quote, the four actions) and the "why" panel on memory details. */
+.conflict-sides { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.conflict-side { padding: 14px 16px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.conflict-side .sub, .why .sub { font-size: 12px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.conflict-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; padding: 10px 8px 4px; }
+.conflict-merge { margin-top: 6px; padding: 10px; }
+.conflict-merge .textarea { width: 100%; min-height: 72px; }
+.quote { margin: 0; padding: 6px 0 6px 12px; border-left: 2px solid var(--line); color: var(--text); font-size: 13px; line-height: 19px; }
+.why { padding: 18px 22px; display: flex; flex-direction: column; gap: 10px; }
+.why p { margin: 0; color: var(--text); line-height: 22px; }
+@media (max-width: 640px) { .conflict-sides { grid-template-columns: 1fr; } }
+.redream-list { display: flex; flex-direction: column; gap: 6px; font-size: 14px; }

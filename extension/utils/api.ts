@@ -191,3 +191,18 @@ export async function saveAllTweets(
 		throw error
 	}
 }
+
+/**
+ * A ready-to-inject context block for a prompt: the user's profile, the memories relevant to the query (with dates)
+ * and matching document excerpts, packed under a small token budget by POST /ns/{ns}/x/context. Sensitive memories
+ * are left out unless the space allows them.
+ */
+export async function fetchContext(
+	query: string,
+	containerTag: string,
+): Promise<{ context: string }> {
+	return makeAuthenticatedRequest<{ context: string }>(
+		`/ns/${encodeURIComponent(containerTag)}/x/context`,
+		{ method: "POST", body: JSON.stringify({ query, budgetTokens: 600 }) },
+	)
+}

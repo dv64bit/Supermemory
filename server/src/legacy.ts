@@ -82,4 +82,39 @@ export function mountLegacy(app: Hono, apiKey: string) {
     if (r.status !== 200) return c.json(r.body, r.status as 400);
     return c.json({ results: r.body.results, total: r.body.results.length, timing: Math.round(performance.now() - started) });
   });
+
+  // v4 profile, optionally with search results for `q` in the same call (what /v5 profile dropped).
+  app.post("/v4/profile", async (c) => {
+    const b = z.object({
+      containerTag: tag,
+      q: z.string().min(1).optional(),
+      threshold: z.number().min(0).max(1).optional(),
+      include: z.array(z.enum(["static", "dynamic", "buckets"])).optional(),
+      buckets: z.array(z.string()).optional(),
+    }).passthrough().parse(await c.req.json());
+    const started = performance.now();
+    const [p, s] = await Promise.all([
+      call("POST", `/ns/${b.containerTag}/profile`, b.buckets ? { buckets: b.buckets } : {}),
+      b.q ? call("POST", `/ns/${b.containerTag}/search`, { query: b.q, searchMode: "memories", limit: 10, ...(b.threshold !== undefined && { threshold: b.threshold }) }) : null,
+    ]);
+    if (p.status !== 200) return c.json(p.body, p.status as 400);
+    if (s && s.status !== 200) return c.json(s.body, s.status as 400);
+    const want = (k: "static" | "dynamic" | "buckets") => !b.include || b.include.includes(k);
+    const strings = (xs: { memory: string }[]) => xs.map((m) => m.memory);
+    const profile = {
+      ...(want("static") && { static: strings(p.body.profile.static) }),
+      ...(want("dynamic") && { dynamic: strings(p.body.profile.dynamic) }),
+      ...(want("buckets") && { buckets: Object.fromEntries(Object.entries(p.body.profile.buckets as Record<string, { memory: string }[]>).map(([k, v]) => [k, strings(v)])) }),
+    };
+    return c.json({
+      profile,
+      ...(s && {
+        searchResults: {
+          results: s.body.results.map((r: any) => ({ id: r.id, memory: r.memory, metadata: r.metadata ?? null, updatedAt: r.system.updatedAt, similarity: r.similarity })),
+          total: s.body.results.length,
+          timing: Math.round(performance.now() - started),
+        },
+      }),
+    });
+  });
 }

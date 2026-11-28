@@ -1,7 +1,11 @@
 import { Hono, type Context } from "hono";
 import { z, ZodError } from "zod";
-import { sql } from "./db";
+import { sql, toVector } from "./db";
+import { embed } from "./embed";
 import { search } from "./search";
+import { assembleContext } from "./context";
+import { explainMemory, listReview, resolveReview, ReviewError } from "./review";
+import { discardRedream, latestRedream, RedreamError, startRedream, swapRedream } from "./redream";
 import { compileFilter, filterSchema } from "./filter";
 import { LIVE, memoryJson, related } from "./memories";
 import { buckets, BUILTIN_BUCKETS, profile } from "./profile";
@@ -10,6 +14,8 @@ import { mountMcp } from "./mcp";
 import { mountChat } from "./chat";
 import { mountLegacy } from "./legacy";
 import { extractFile, MAX_FILE, UnsupportedFile } from "./extract";
+import { redact, storeRawSecrets } from "./guard";
+import { logEvents } from "./events";
 
 const nsParam = z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/);
 const metaValue = z.union([z.string(), z.number(), z.boolean(), z.array(z.string())]);
@@ -53,15 +59,18 @@ async function ensureNs(ns: string) {
 type DocIn = z.infer<typeof addBody>;
 async function upsertDoc(ns: string, d: DocIn, file?: { title: string; type: string }) {
   const id = d.id ?? crypto.randomUUID();
+  const guarded = redact(d.content);
+  const raw = storeRawSecrets() ? d.content : guarded.text;
+  const redactions = Object.keys(guarded.findings).length ? guarded.findings : null;
   // Re-sending a known id updates in place; the worker skips re-indexing if extracted text is unchanged.
   const [row] = await sql`
-    insert into documents (ns, id, raw, metadata, supporting_context, doc_date, task_type, dreaming, status, title, type)
-    values (${ns}, ${id}, ${d.content}, ${d.metadata ?? {}}, ${d.supportingContext ?? null}, ${parseDate(d.date)},
+    insert into documents (ns, id, raw, redactions, metadata, supporting_context, doc_date, task_type, dreaming, status, title, type)
+    values (${ns}, ${id}, ${raw}, ${redactions}, ${d.metadata ?? {}}, ${d.supportingContext ?? null}, ${parseDate(d.date)},
             ${d.taskType ?? "memory"}, ${d.dreaming ?? "dynamic"}, 'queued', ${file?.title ?? null},
             ${file?.type ?? (/^https?:\/\/\S+$/i.test(d.content.trim()) ? "webpage" : "text")})
     on conflict (ns, id) do update set
       title = coalesce(excluded.title, documents.title), type = excluded.type,
-      raw = excluded.raw, metadata = excluded.metadata, supporting_context = excluded.supporting_context,
+      raw = excluded.raw, redactions = excluded.redactions, metadata = excluded.metadata, supporting_context = excluded.supporting_context,
       doc_date = excluded.doc_date, task_type = excluded.task_type, dreaming = excluded.dreaming,
       status = 'queued', updated_at = now()
     returning id, status`;
@@ -192,7 +201,14 @@ export function createApp(apiKey: string) {
   app.delete("/ns/:namespace/document", async (c) => {
     const n = ns(c);
     const { ids } = deleteBody.parse(await c.req.json());
-    const gone = await sql`delete from documents where ns = ${n} and id in ${sql(ids)} returning id`;
+    // Memories a deleted document taught us stay as history: their validity ends now, so default search drops them.
+    const gone = await sql.begin(async (tx) => {
+      const ended = await tx`update memories m set valid_to = now(), updated_at = now() from documents d
+        where d.ns = ${n} and d.id in ${sql(ids)} and m.source_document_pk = d.pk and (m.valid_to is null or m.valid_to > now())
+        returning m.pk`;
+      await logEvents(ended.map((r: any) => ({ memoryPk: r.pk, action: "expire" as const, actor: "api" as const, reason: "source document deleted" })), tx);
+      return tx`delete from documents where ns = ${n} and id in ${sql(ids)} returning id`;
+    });
     const found = new Set(gone.map((r: any) => r.id));
     return c.json({ count: found.size, errors: ids.filter((i) => !found.has(i)).map((id) => ({ id, error: "not found" })) });
   });
@@ -200,8 +216,29 @@ export function createApp(apiKey: string) {
   app.post("/ns/:namespace/search", async (c) => {
     const n = ns(c);
     const body = searchBody.parse(await c.req.json());
-    // ponytail: rerank / rewriteQuery accepted and ignored until phase 2 adds the reranker + LLM.
+    // ponytail: rerank / rewriteQuery accepted and ignored (DEFERRED: cross-encoder rerank, LLM query rewrite).
     return c.json(await search(n, body));
+  });
+
+  // v5 search plus time travel: `asOf` = what was valid then (valid_from <= t < valid_to); `history` = also search
+  // superseded versions. Temporal questions ("before", "used to", "in 2025") turn history on by themselves.
+  app.post("/ns/:namespace/x/search", async (c) => {
+    const n = ns(c);
+    const body = searchBody.extend({ asOf: z.string().datetime({ offset: true }).optional(), history: z.boolean().optional() }).strict()
+      .parse(await c.req.json());
+    return c.json(await search(n, { ...body, asOf: body.asOf ? new Date(body.asOf) : undefined }));
+  });
+
+  // Ready-to-inject context block under a token budget (PLAN.v2 §4.7): profile, relevant memories, document chunks.
+  app.post("/ns/:namespace/x/context", async (c) => {
+    const n = ns(c);
+    const body = z.object({
+      query: z.string().min(1).max(10_000).optional(),
+      budgetTokens: z.number().int().min(50).max(32_000).default(1500),
+      asOf: z.string().datetime({ offset: true }).optional(),
+      threshold: z.number().min(0).max(1).optional(),
+    }).strict().parse(await c.req.json().catch(() => ({})));
+    return c.json(await assembleContext(n, { ...body, asOf: body.asOf ? new Date(body.asOf) : undefined }));
   });
 
   app.get("/ns/:namespace/memories/:id", async (c) => {
@@ -213,7 +250,7 @@ export function createApp(apiKey: string) {
     const out: Record<string, any> = memoryJson(m);
     const included: Record<string, unknown> = {};
     if (!include.length || include.includes("related")) included.related = (await related([m.pk], limit)).get(m.pk);
-    if ((!include.length || include.includes("document")) && m.source_document_pk) {
+    if ((!include.length || include.includes("documents") || include.includes("document")) && m.source_document_pk) {
       const [d] = await sql`select * from documents where pk = ${m.source_document_pk}`;
       if (d) included.document = { id: d.id, title: d.title, type: d.type, metadata: d.metadata, summary: null,
         system: { createdAt: iso(d.created_at), updatedAt: iso(d.updated_at) } };
@@ -227,7 +264,8 @@ export function createApp(apiKey: string) {
     const n = ns(c);
     const { ids } = z.object({ ids: z.array(z.string().min(1)).min(1).max(500) }).strict().parse(await c.req.json());
     const rows = await sql`update memories set is_forgotten = true, forget_reason = 'forgotten by id', updated_at = now()
-      where ns = ${n} and id in ${sql(ids)} returning id, content`;
+      where ns = ${n} and id in ${sql(ids)} returning pk, id, content`;
+    await logEvents(rows.map((r: any) => ({ memoryPk: r.pk, action: "forget", actor: "api", reason: "forgotten by id" })));
     const found = new Set(rows.map((r: any) => r.id));
     return c.json({
       count: rows.length,
@@ -242,28 +280,37 @@ export function createApp(apiKey: string) {
     return c.json(await forgetSemantic(n, query, dryRun));
   });
 
-  app.post("/ns/:namespace/memories/:id/restore", async (c) => {
+  // v2 extensions live under /x/; the old paths stay as aliases for existing clients.
+  app.on("POST", ["/ns/:namespace/x/memories/:id/restore", "/ns/:namespace/memories/:id/restore"], async (c) => {
     const [m] = await sql`update memories set is_forgotten = false, forget_reason = null, forget_after = null, updated_at = now()
       where ns = ${ns(c)} and id = ${c.req.param("id")} returning *`;
-    return m ? c.json(memoryJson(m)) : c.json({ error: "Memory not found" }, 404);
-  });
-
-  // Inferred-memory review (not in v5; v3 had it): approve keeps it as a trusted fact, decline forgets it.
-  app.post("/ns/:namespace/memories/:id/review", async (c) => {
-    const n = ns(c);
-    const { action } = z.object({ action: z.enum(["approve", "decline"]) }).strict().parse(await c.req.json());
-    const [m] = action === "approve"
-      ? await sql`update memories set is_inference = false, updated_at = now() where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`
-      : await sql`update memories set is_forgotten = true, forget_reason = 'declined in review', updated_at = now()
-          where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`;
-    if (!m) return c.json({ error: "Inferred memory not found" }, 404);
+    if (!m) return c.json({ error: "Memory not found" }, 404);
+    await logEvents([{ memoryPk: m.pk, action: "restore", actor: "api" }]);
     return c.json(memoryJson(m));
   });
 
+  // Inferred-memory review (not in v5; v3 had it): approve keeps it as a trusted fact, decline forgets it.
+  app.on("POST", ["/ns/:namespace/x/memories/:id/review", "/ns/:namespace/memories/:id/review"], async (c) => {
+    const n = ns(c);
+    const { action } = z.object({ action: z.enum(["approve", "decline"]) }).strict().parse(await c.req.json());
+    const [m] = action === "approve"
+      ? await sql`update memories set is_inference = false, status = 'active', updated_at = now()
+          where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`
+      : await sql`update memories set is_forgotten = true, forget_reason = 'declined in review', status = 'rejected', updated_at = now()
+          where ns = ${n} and id = ${c.req.param("id")} and is_inference returning *`;
+    if (!m) return c.json({ error: "Inferred memory not found" }, 404);
+    await logEvents([{ memoryPk: m.pk, action: action === "approve" ? "approve" : "reject", actor: "user", reason: "inference review" }]);
+    await sql`update review_items set status = ${action === "approve" ? "approved" : "rejected"}, resolved_at = now()
+      where memory_pk = ${m.pk} and kind = 'inference' and status = 'open'`;
+    return c.json(memoryJson(m));
+  });
+
+  const bucketSlug = z.string().min(1).max(64).regex(/^[a-z0-9][a-z0-9_-]*$/);
   app.post("/ns/:namespace/profile", async (c) => {
     const n = ns(c);
-    const body = z.object({ filter: filterSchema.optional() }).strict().parse(await c.req.json().catch(() => ({})));
-    return c.json(await profile(n, body.filter));
+    const body = z.object({ filter: filterSchema.optional(), buckets: z.array(bucketSlug).max(50).optional() }).strict()
+      .parse(await c.req.json().catch(() => ({})));
+    return c.json(await profile(n, body.filter, body.buckets));
   });
 
   const bucketName = z.string().min(1).max(64).regex(/^[a-z0-9_-]+$/);
@@ -291,6 +338,7 @@ export function createApp(apiKey: string) {
     page: z.coerce.number().int().min(1).default(1),
     limit: z.coerce.number().int().min(1).max(1100).default(10),
     order: z.enum(["asc", "desc"]).default("desc"),
+    sort: z.enum(["createdAt", "updatedAt", "position"]).default("createdAt"),
   });
   const listBody = z.object({
     filter: filterSchema.optional(),
@@ -305,31 +353,36 @@ export function createApp(apiKey: string) {
     const params: unknown[] = [n, q.limit, (q.page - 1) * q.limit];
     const where = body.filter ? `and ${compileFilter(body.filter, "d.metadata", params)}` : "";
     const dir = q.order === "asc" ? "asc" : "desc";
+    if (q.sort === "position" && type !== "chunks") return c.json({ error: "sort=position is available only when listing chunks" }, 400);
+    const col = q.sort === "updatedAt" ? "updated_at" : "created_at";
+    // v5: every list response carries all three arrays; the ones not requested are empty.
+    const listed = (rest: Record<string, unknown>) => ({ documents: [], chunks: [], memories: [], ...rest });
     if (type === "memories") {
       const live = (body.include?.forgotten ? "m.is_latest" : LIVE()) + (c.req.query("inference") === "true" ? " and m.is_inference" : "");
       const rows = await sql.unsafe(`select m.*, count(*) over () as total from memories m where m.ns = $1 and ${live}
-        ${where.replaceAll("d.metadata", "m.metadata")} order by m.updated_at ${dir} limit $2 offset $3`, params);
-      return c.json({ memories: rows.map(memoryJson), pagination: page(q, Number(rows[0]?.total ?? 0)) });
+        ${where.replaceAll("d.metadata", "m.metadata")} order by m.${col} ${dir}, m.pk ${dir} limit $2 offset $3`, params);
+      return c.json(listed({ memories: rows.map(memoryJson), pagination: page(q, Number(rows[0]?.total ?? 0)) }));
     }
     if (type === "documents") {
       const rows = await sql.unsafe(`select d.*, count(*) over () as total,
           (select count(*)::int from memories m where m.source_document_pk = d.pk and ${LIVE()}) as memory_count
-        from documents d where d.ns = $1 ${where} order by d.created_at ${dir} limit $2 offset $3`, params);
-      return c.json({
+        from documents d where d.ns = $1 ${where} order by d.${col} ${dir}, d.pk ${dir} limit $2 offset $3`, params);
+      return c.json(listed({
         documents: rows.map((r: any) => ({ ...docJson(r, !!body.include?.content), system: { ...docJson(r).system, memoryCount: r.memory_count } })),
         pagination: page(q, Number(rows[0]?.total ?? 0)),
-      });
+      }));
     }
     const rows = await sql.unsafe(`select c.id, c.position, c.content, c.created_at, d.id as doc_id, d.metadata,
         count(*) over () as total from chunks c join documents d on d.pk = c.document_pk where c.ns = $1 ${where}
-        order by c.created_at ${dir}, c.position limit $2 offset $3`, params);
-    return c.json({
+        order by ${q.sort === "position" ? `d.pk ${dir}, c.position ${dir}` : `c.created_at ${dir}, c.position`} limit $2 offset $3`, params);
+    // Chunks are never edited, so updatedAt orders like createdAt.
+    return c.json(listed({
       chunks: rows.map((r: any) => ({
         id: String(r.id), position: r.position, content: r.content, type: "text", metadata: r.metadata,
         documentId: r.doc_id, system: { createdAt: iso(r.created_at) },
       })),
       pagination: page(q, Number(rows[0]?.total ?? 0)),
-    });
+    }));
   });
 
   const nsList = async (c: Context) => {
@@ -338,7 +391,8 @@ export function createApp(apiKey: string) {
       select n.*, (select count(*)::int from documents d where d.ns = n.id) as doc_count,
         (select count(*)::int from memories m where m.ns = n.id and m.is_latest and not m.is_forgotten) as mem_count,
         count(*) over () as total
-      from namespaces n order by n.created_at desc limit ${q.limit} offset ${(q.page - 1) * q.limit}`;
+      from namespaces n where n.id not like '%:shadow' -- a re-dream's working copy (redream.ts), not a space of its own
+      order by n.created_at desc limit ${q.limit} offset ${(q.page - 1) * q.limit}`;
     return c.json({
       namespaces: rows.map((r: any) => ({
         id: r.id, namespace: r.id, description: r.supporting_context, documentCount: r.doc_count, memoryCount: r.mem_count,
@@ -351,7 +405,7 @@ export function createApp(apiKey: string) {
   app.get("/namespaces", nsList);
 
   // Graph for the UI: non-forgotten memories (old versions too, so update chains show) + their documents.
-  app.get("/ns/:namespace/graph", async (c) => {
+  app.on("GET", ["/ns/:namespace/x/graph", "/ns/:namespace/graph"], async (c) => {
     const n = ns(c);
     const limit = z.coerce.number().int().min(1).max(2000).default(300).parse(c.req.query("limit"));
     const mems = await sql`select pk, id, content, kind, is_latest, is_inference, version, created_at, source_document_pk
@@ -375,6 +429,69 @@ export function createApp(apiKey: string) {
         ...mems.filter((m: any) => docId.has(m.source_document_pk)).map((m: any) => ({ source: m.id, target: docId.get(m.source_document_pk), relation: "source" })),
       ],
     });
+  });
+
+  // v2 extensions (not in v5). Editing a memory pins it: dreaming never supersedes a pinned memory on its own.
+  app.patch("/ns/:namespace/x/memories/:id", async (c) => {
+    const n = ns(c);
+    const body = z.object({ content: z.string().min(1).max(2000).optional(), pinned: z.boolean().optional() }).strict()
+      .refine((b) => b.content !== undefined || b.pinned !== undefined, { message: "content or pinned is required" }).parse(await c.req.json());
+    const [old] = await sql`select pk, content, pinned from memories where ns = ${n} and id = ${c.req.param("id")}`;
+    if (!old) return c.json({ error: "Memory not found" }, 404);
+    const pinned = body.pinned ?? true;
+    const vec = body.content !== undefined ? toVector((await embed([body.content]))[0]) : null;
+    const [m] = await sql`update memories set content = coalesce(${body.content ?? null}, content), pinned = ${pinned},
+        embedding = coalesce(${vec}::vector, embedding), speaker = case when ${body.content !== undefined} then 'user' else speaker end,
+        updated_at = now()
+      where pk = ${old.pk} returning *`;
+    await logEvents([{ memoryPk: old.pk, action: "edit", actor: "user", before: { content: old.content, pinned: old.pinned }, after: { content: m.content, pinned } }]);
+    return c.json({ ...memoryJson(m), pinned: m.pinned });
+  });
+
+  // Review inbox: what dreaming wouldn't decide alone (inferences, conflicts, unsure updates), resolved by a person.
+  app.get("/ns/:namespace/x/review", async (c) => {
+    const status = z.enum(["open", "approved", "rejected", "merged"]).default("open").parse(c.req.query("status"));
+    return c.json({ items: await listReview(ns(c), status) });
+  });
+  app.post("/ns/:namespace/x/review/:id", async (c) => {
+    const body = z.discriminatedUnion("action", [
+      z.object({ action: z.enum(["approve", "reject", "keep_new", "keep_old", "keep_both"]) }).strict(),
+      z.object({ action: z.literal("merge"), content: z.string().trim().min(1).max(2000) }).strict(),
+    ]).parse(await c.req.json());
+    try {
+      return c.json(await resolveReview(ns(c), c.req.param("id"), body));
+    } catch (e) {
+      if (e instanceof ReviewError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  });
+
+  // Provenance: why the engine knows this (source quote, speaker, run, versions, history, reviews).
+  app.get("/ns/:namespace/x/memories/:id/explain", async (c) => {
+    const out = await explainMemory(ns(c), c.req.param("id"));
+    return out ? c.json(out) : c.json({ error: "Memory not found" }, 404);
+  });
+
+  // Re-dream: replay every document through the current pipeline into a shadow space, review the diff, then swap.
+  const redreamed = async (c: Context, f: () => Promise<unknown>, status: 200 | 202 = 200) => {
+    try {
+      return c.json(await f(), status);
+    } catch (e) {
+      if (e instanceof RedreamError) return c.json({ error: e.message }, e.status);
+      throw e;
+    }
+  };
+  app.post("/ns/:namespace/x/redream", (c) => redreamed(c, () => startRedream(ns(c)), 202));
+  app.get("/ns/:namespace/x/redream", async (c) => c.json(await latestRedream(ns(c)))); // null before the first one
+  app.post("/ns/:namespace/x/redream/swap", (c) => redreamed(c, () => swapRedream(ns(c))));
+  app.delete("/ns/:namespace/x/redream", (c) => redreamed(c, () => discardRedream(ns(c))));
+
+  app.patch("/ns/:namespace/x/settings", async (c) => {
+    const n = ns(c);
+    const body = z.object({ injectSensitive: z.boolean() }).strict().parse(await c.req.json());
+    await ensureNs(n);
+    await sql`update namespaces set inject_sensitive = ${body.injectSensitive}, updated_at = now() where id = ${n}`;
+    return c.json({ injectSensitive: body.injectSensitive });
   });
 
   mountChat(app, apiKey);

@@ -1,0 +1,651 @@
+{
+  "id": "2026-10-23T09-54-28Z-e2-extraction",
+  "git": {
+    "sha": "8568292",
+    "dirty": true
+  },
+  "layer": "e2",
+  "name": "extraction",
+  "startedAt": "2026-10-23T09:54:28.529Z",
+  "durationMs": 1080784,
+  "config": {
+    "dataset": "extraction.v1",
+    "units": 40,
+    "expected_facts": 57,
+    "prompt": "extract.v1",
+    "llm_base_url": "http://localhost:11434/v1",
+    "extract_model": "qwen3:4b-instruct",
+    "relate_model": "qwen3:4b-instruct",
+    "judge_model": "qwen3:4b-instruct"
+  },
+  "metrics": {
+    "n": 40,
+    "precision": 0.6056338028169014,
+    "recall": 0.7543859649122807,
+    "f1": 0.671875,
+    "forbidden_hit_rate": 0.6666666666666666,
+    "empty_unit_accuracy": 0.42857142857142855,
+    "unresolved_relative_dates": 6,
+    "predicted_per_unit": 1.775,
+    "extract_errors": 0,
+    "llm_calls": 40,
+    "llm_failed": 0,
+    "llm_repaired": 0,
+    "tokens_in": 12794,
+    "tokens_out": 2211
+  },
+  "groups": {
+    "assistant-confirmed": {
+      "n": 2,
+      "precision": 0.6,
+      "recall": 1,
+      "f1": 0.7499999999999999,
+      "forbidden_hit_rate": 1
+    },
+    "assistant-facts": {
+      "n": 2,
+      "precision": 0.16666666666666666,
+      "recall": 1,
+      "f1": 0.2857142857142857,
+      "forbidden_hit_rate": 1
+    },
+    "assistant-suggestion": {
+      "n": 5,
+      "precision": 0.4444444444444444,
+      "recall": 0.6666666666666666,
+      "f1": 0.5333333333333333,
+      "forbidden_hit_rate": 0.8
+    },
+    "correction": {
+      "n": 2,
+      "precision": 1,
+      "recall": 0.6666666666666666,
+      "f1": 0.8,
+      "forbidden_hit_rate": 0
+    },
+    "document-note": {
+      "n": 3,
+      "precision": 0.8,
+      "recall": 1,
+      "f1": 0.888888888888889,
+      "forbidden_hit_rate": 0
+    },
+    "episode": {
+      "n": 2,
+      "precision": 0.6,
+      "recall": 1,
+      "f1": 0.7499999999999999,
+      "forbidden_hit_rate": 0
+    },
+    "hypothetical": {
+      "n": 2,
+      "precision": 0.25,
+      "recall": 1,
+      "f1": 0.4,
+      "forbidden_hit_rate": 1
+    },
+    "multi-fact": {
+      "n": 1,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "forbidden_hit_rate": 0
+    },
+    "negation": {
+      "n": 1,
+      "precision": 1,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "forbidden_hit_rate": 0
+    },
+    "preference": {
+      "n": 3,
+      "precision": 1,
+      "recall": 0.5,
+      "f1": 0.6666666666666666,
+      "forbidden_hit_rate": 0
+    },
+    "question": {
+      "n": 2,
+      "precision": 0,
+      "recall": 1,
+      "f1": 0,
+      "forbidden_hit_rate": 1
+    },
+    "relative-date": {
+      "n": 4,
+      "precision": 0.75,
+      "recall": 0.6,
+      "f1": 0.6666666666666665,
+      "forbidden_hit_rate": 0.5
+    },
+    "small-talk": {
+      "n": 3,
+      "precision": 1,
+      "recall": 1,
+      "f1": 1,
+      "forbidden_hit_rate": 0
+    },
+    "third-party": {
+      "n": 4,
+      "precision": 0.6666666666666666,
+      "recall": 0.5,
+      "f1": 0.5714285714285715,
+      "forbidden_hit_rate": 0.5
+    },
+    "user-facts": {
+      "n": 4,
+      "precision": 0.875,
+      "recall": 0.875,
+      "f1": 0.875,
+      "forbidden_hit_rate": 0
+    }
+  },
+  "details": [
+    {
+      "id": "x01",
+      "category": "user-facts",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User is now in Pune",
+        "User works as a staff ML engineer at Northwind Labs"
+      ]
+    },
+    {
+      "id": "x02",
+      "category": "assistant-suggestion",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User considers using Postgres for their side project.",
+        "User considers using SQLite for their side project."
+      ]
+    },
+    {
+      "id": "x03",
+      "category": "assistant-confirmed",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User chose Postgres for side project.",
+        "Assistant recommended Postgres for full-text search."
+      ]
+    },
+    {
+      "id": "x04",
+      "category": "third-party",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Ravi told the user the launch deadline moved to Friday.",
+        "The user is unsure if Ravi's statement about the launch deadline is correct."
+      ]
+    },
+    {
+      "id": "x05",
+      "category": "relative-date",
+      "expected": 1,
+      "predicted": 1,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User has statistics exam on 2026-10-06."
+      ]
+    },
+    {
+      "id": "x06",
+      "category": "small-talk",
+      "expected": 0,
+      "predicted": 0,
+      "matched": 0,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": []
+    },
+    {
+      "id": "x07",
+      "category": "hypothetical",
+      "expected": 0,
+      "predicted": 2,
+      "matched": 0,
+      "forbiddenHits": 2,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User will need to learn German if moving to Berlin.",
+        "Many tech jobs in Berlin are in English."
+      ]
+    },
+    {
+      "id": "x08",
+      "category": "preference",
+      "expected": 2,
+      "predicted": 0,
+      "matched": 0,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": []
+    },
+    {
+      "id": "x09",
+      "category": "document-note",
+      "expected": 3,
+      "predicted": 3,
+      "matched": 3,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Anika has a school PTM on 2026-10-03 at 16:00",
+        "Car insurance renewal is due before 2026-10-15",
+        "Biscuit has a rabies booster due"
+      ]
+    },
+    {
+      "id": "x10",
+      "category": "correction",
+      "expected": 1,
+      "predicted": 0,
+      "matched": 0,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": []
+    },
+    {
+      "id": "x11",
+      "category": "question",
+      "expected": 0,
+      "predicted": 3,
+      "matched": 0,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "The user wants to learn Rust.",
+        "The user will start with the Rust Book.",
+        "The user will do Rustlings exercises."
+      ]
+    },
+    {
+      "id": "x12",
+      "category": "user-facts",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User has penicillin allergy.",
+        "User's blood group is B+."
+      ]
+    },
+    {
+      "id": "x13",
+      "category": "assistant-suggestion",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 0,
+      "forbiddenHits": 2,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User cuts caffeine after 2pm.",
+        "User has fixed bedtime of 10:30pm."
+      ]
+    },
+    {
+      "id": "x14",
+      "category": "episode",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User ran a 10k race in 58 minutes.",
+        "User completed a 10k race without knee issues."
+      ]
+    },
+    {
+      "id": "x15",
+      "category": "third-party",
+      "expected": 3,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Priya wants status updates every Friday.",
+        "The reorg is happening in January."
+      ]
+    },
+    {
+      "id": "x16",
+      "category": "relative-date",
+      "expected": 2,
+      "predicted": 1,
+      "matched": 0,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User is flying to Kochi on Saturday, 2026-10-16."
+      ]
+    },
+    {
+      "id": "x17",
+      "category": "assistant-facts",
+      "expected": 0,
+      "predicted": 3,
+      "matched": 0,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "The capital of Australia is Canberra.",
+        "The user asked about the capital of Australia.",
+        "The assistant responded that the capital of Australia is Canberra."
+      ]
+    },
+    {
+      "id": "x18",
+      "category": "preference",
+      "expected": 2,
+      "predicted": 1,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User prefers Python with type hints and 4 spaces for code examples."
+      ]
+    },
+    {
+      "id": "x19",
+      "category": "multi-fact",
+      "expected": 3,
+      "predicted": 3,
+      "matched": 3,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Mei has a dental clinic license.",
+        "The user adopted a beagle named Biscuit.",
+        "The user uses Neovim as their code editor."
+      ]
+    },
+    {
+      "id": "x20",
+      "category": "assistant-suggestion",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User plans family trip to Kyoto in April 2026.",
+        "User prefers Kyoto over other destinations for family trip."
+      ]
+    },
+    {
+      "id": "x21",
+      "category": "small-talk",
+      "expected": 0,
+      "predicted": 0,
+      "matched": 0,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": []
+    },
+    {
+      "id": "x22",
+      "category": "negation",
+      "expected": 2,
+      "predicted": 1,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 1,
+      "predictions": [
+        "User switched to green tea last month."
+      ]
+    },
+    {
+      "id": "x23",
+      "category": "document-note",
+      "expected": 3,
+      "predicted": 4,
+      "matched": 3,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Priya attended the ranking sync meeting on 1 Aug 2026.",
+        "Daniel owns the rollout of the new ranker.",
+        "The new ranker will be shipped behind a flag on 15 Aug 2026.",
+        "Latency regression ticket PAY-4821 remains unresolved."
+      ]
+    },
+    {
+      "id": "x24",
+      "category": "third-party",
+      "expected": 2,
+      "predicted": 0,
+      "matched": 0,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": []
+    },
+    {
+      "id": "x25",
+      "category": "assistant-suggestion",
+      "expected": 1,
+      "predicted": 1,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User decided to call their memory server project supermem."
+      ]
+    },
+    {
+      "id": "x26",
+      "category": "relative-date",
+      "expected": 1,
+      "predicted": 1,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User's passport expires in June 2029."
+      ]
+    },
+    {
+      "id": "x27",
+      "category": "user-facts",
+      "expected": 3,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User pays 42k monthly rent to Mr Deshpande.",
+        "Mr Deshpande responds only via WhatsApp."
+      ]
+    },
+    {
+      "id": "x28",
+      "category": "hypothetical",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "A 3050 with 4 GB GPU cannot handle 7B model fine-tuning locally.",
+        "QLoRA requires at least 24 GB GPU memory for 7B model fine-tuning."
+      ]
+    },
+    {
+      "id": "x29",
+      "category": "episode",
+      "expected": 1,
+      "predicted": 3,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 2,
+      "predictions": [
+        "User had dinner at Malaka Spice with Mei tonight.",
+        "Mei had dinner at Malaka Spice tonight.",
+        "Dinner at Malaka Spice was great."
+      ]
+    },
+    {
+      "id": "x30",
+      "category": "correction",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 1,
+      "predictions": [
+        "User corrected anniversary date to 9 February.",
+        "User's date night tonight is not an anniversary."
+      ]
+    },
+    {
+      "id": "x31",
+      "category": "assistant-facts",
+      "expected": 1,
+      "predicted": 3,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 1,
+      "predictions": [
+        "ColBERTv2 uses residual compression to reduce token embeddings.",
+        "ColBERTv2 matches query and document tokens with MaxSim.",
+        "User is reading the ColBERTv2 paper this week."
+      ]
+    },
+    {
+      "id": "x32",
+      "category": "third-party",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Aisha wants to move into research within two years.",
+        "Aisha has I as her mentor."
+      ]
+    },
+    {
+      "id": "x33",
+      "category": "preference",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User does not want meetings scheduled on Wednesdays",
+        "User prefers morning meetings"
+      ]
+    },
+    {
+      "id": "x34",
+      "category": "question",
+      "expected": 0,
+      "predicted": 2,
+      "matched": 0,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Ibuprofen is safe for a six-year-old at the right weight-based dose.",
+        "The user should check with a pediatrician before giving ibuprofen to a six-year-old."
+      ]
+    },
+    {
+      "id": "x35",
+      "category": "user-facts",
+      "expected": 1,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User volunteers on Saturdays teaching Python.",
+        "User teaches Python at a government school near Baner."
+      ]
+    },
+    {
+      "id": "x36",
+      "category": "assistant-confirmed",
+      "expected": 2,
+      "predicted": 3,
+      "matched": 2,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User ordered a cooling pad",
+        "User's laptop overheats",
+        "Assistant recommended cleaning vents and checking processes"
+      ]
+    },
+    {
+      "id": "x37",
+      "category": "relative-date",
+      "expected": 1,
+      "predicted": 1,
+      "matched": 1,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": [
+        "Anika's birthday party is two weeks from Sunday."
+      ]
+    },
+    {
+      "id": "x38",
+      "category": "document-note",
+      "expected": 2,
+      "predicted": 3,
+      "matched": 2,
+      "forbiddenHits": 0,
+      "unresolvedDates": 1,
+      "predictions": [
+        "Dr. Shah advised cutting salt in health log.",
+        "Health log shows BP 128/84 this morning.",
+        "Health log has recheck appointment in 3 months."
+      ]
+    },
+    {
+      "id": "x39",
+      "category": "small-talk",
+      "expected": 0,
+      "predicted": 0,
+      "matched": 0,
+      "forbiddenHits": 0,
+      "unresolvedDates": 0,
+      "predictions": []
+    },
+    {
+      "id": "x40",
+      "category": "assistant-suggestion",
+      "expected": 2,
+      "predicted": 2,
+      "matched": 1,
+      "forbiddenHits": 1,
+      "unresolvedDates": 0,
+      "predictions": [
+        "User leans towards staying at Northwind.",
+        "Razorpay has a strong fraud team."
+      ]
+    }
+  ]
+}

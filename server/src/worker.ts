@@ -1,14 +1,15 @@
 import { sql, toVector } from "./db";
 import { extract } from "./extract";
 import { chunk } from "./chunk";
-import { embed } from "./embed";
+import { embed, EMBED_MODEL } from "./embed";
 import { dream } from "./dream";
-import { sweep } from "./forget";
+import { sweep } from "./lifecycle";
+import { redact } from "./guard";
 
 const BUSY = ["extracting", "chunking", "embedding", "indexing"];
 
-// Claim the oldest queued document whose namespace has nothing in flight:
-// ingest is serialized per namespace because order decides which fact "came first".
+// Claim the queued document earliest in event time (its date, else when it arrived) whose namespace has nothing in
+// flight: ingest is serialised per namespace, and dreaming in event order keeps supersedes in the right direction.
 async function claim() {
   const [doc] = await sql`
     update documents set status = 'extracting', error = null, updated_at = now()
@@ -16,7 +17,7 @@ async function claim() {
       select d.pk from documents d
       where d.status = 'queued'
         and not exists (select 1 from documents x where x.ns = d.ns and (x.status in ${sql(BUSY)} or x.dreaming_status = 'dreaming'))
-      order by d.created_at
+      order by coalesce(d.doc_date, d.created_at), d.created_at
       limit 1
       for update skip locked
     )
@@ -31,6 +32,9 @@ export async function processOne(): Promise<boolean> {
   if (!doc) return false;
   try {
     const ex = await extract(doc.raw);
+    // Fetched pages, and raw kept under STORE_RAW_SECRETS, can still hold secrets: chunks and memories never do.
+    const guarded = redact(ex.text);
+    ex.text = guarded.text;
     const hash = new Bun.CryptoHasher("sha256").update(ex.text).digest("hex");
     const [{ n }] = await sql`select count(*)::int as n from chunks where document_pk = ${doc.pk}`;
     if (hash === doc.content_hash && n > 0) {
@@ -38,7 +42,8 @@ export async function processOne(): Promise<boolean> {
       return true;
     }
     // Plain-text extraction keeps the type set at upload (pdf, docx, code...).
-    await sql`update documents set content = ${ex.text}, type = case when ${ex.type} = 'text' then type else ${ex.type} end, url = ${ex.url},
+    const found = Object.keys(guarded.findings).length ? guarded.findings : null;
+    await sql`update documents set content = ${ex.text}, redactions = coalesce(${found}::jsonb, redactions), type = case when ${ex.type} = 'text' then type else ${ex.type} end, url = ${ex.url},
       title = coalesce(title, ${ex.title}), status = 'chunking', updated_at = now() where pk = ${doc.pk}`;
     const pieces = chunk(ex.text);
     await setStatus(doc.pk, "embedding");
@@ -47,8 +52,8 @@ export async function processOne(): Promise<boolean> {
     await sql.begin(async (tx) => {
       await tx`delete from chunks where document_pk = ${doc.pk}`;
       for (const [i, content] of pieces.entries()) {
-        await tx`insert into chunks (document_pk, ns, position, content, embedding)
-          values (${doc.pk}, ${doc.ns}, ${i}, ${content}, ${toVector(vectors[i])}::vector)`;
+        await tx`insert into chunks (document_pk, ns, position, content, embedding, embedding_model)
+          values (${doc.pk}, ${doc.ns}, ${i}, ${content}, ${toVector(vectors[i])}::vector, ${EMBED_MODEL})`;
       }
       const dreaming = doc.task_type === "memory" ? "dreaming" : "done";
       await tx`update documents set status = 'done', dreaming_status = ${dreaming}, content_hash = ${hash}, updated_at = now() where pk = ${doc.pk}`;

@@ -1,7 +1,9 @@
-// Seam 1: the HTTP API contract, exercised through a small external-style client.
+// Seam 1: the HTTP API contract, exercised through a small external-style client (./client.ts).
+// Every response is also validated against ref/v5.json (see v5-schema.ts).
 import { beforeAll, afterAll, expect, test } from "bun:test";
 
 import { freshDb, startFakeLlm } from "./fake-llm";
+import { KNOWN_V5_MISMATCHES, specIssues, validatingFetch } from "./v5-schema";
 const llm = startFakeLlm(); // no memories extracted: this file covers documents/chunks only
 await freshDb("supermem_test_contract");
 const { migrate } = await import("../src/db");
@@ -17,7 +19,7 @@ const NS = "user_alex";
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp(KEY).fetch });
-  client = new MemClient({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  client = new MemClient({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
@@ -85,16 +87,18 @@ test("batch add, list, delete", async () => {
 test("namespaces list counts documents", async () => {
   const res = await fetch(`http://localhost:${server.port}/ns`, { headers: { authorization: `Bearer ${KEY}` } });
   const body = await res.json();
+  expect(specIssues("GET", "/ns", res.status, body)).toEqual([]);
   expect(body.namespaces[0]).toMatchObject({ id: NS, documentCount: 3 });
 });
 
 test("bad key is rejected, bad body is 400", async () => {
-  const bad = new MemClient({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  const bad = new MemClient({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
   expect(await bad.search(NS, { query: "x" }).then(() => null, (e) => e)).toBeInstanceOf(UnauthorizedError);
   const res = await fetch(`http://localhost:${server.port}/ns/${NS}/search`, {
     method: "POST", headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: JSON.stringify({ query: "" }),
   });
   expect(res.status).toBe(400);
+  expect(specIssues("POST", `/ns/${NS}/search`, 400, await res.json())).toEqual([]);
 });
 
 // Minimal valid one-page PDF with a text object, built by hand (offsets computed).
@@ -123,7 +127,9 @@ test("file upload: pdf and markdown ingest with their type; unsupported types ar
   };
   const pdf = await upload(new File([tinyPdf("Invoice total is 420 euros")], "invoice.pdf", { type: "application/pdf" }), { source: "upload" });
   expect(pdf.status).toBe(200);
-  const { id } = await pdf.json();
+  const pdfBody = await pdf.json();
+  expect(specIssues("POST", `/ns/${NS}/document/file`, 200, pdfBody)).toEqual([]);
+  const { id } = pdfBody;
   const md = await (await upload(new File(["# Recipe\nAdd two eggs."], "recipe.md"))).json();
   await drain();
 
@@ -136,7 +142,7 @@ test("file upload: pdf and markdown ingest with their type; unsupported types ar
   const bad = await upload(new File([new Uint8Array([137, 80, 78, 71])], "photo.png", { type: "image/png" }));
   expect(bad.status).toBe(400);
   expect((await bad.json()).error).toContain("unsupported");
-});
+}, 30_000); // first PDF parse loads pdf.js; cold starts exceeded bun's 5s default
 
 test("legacy v3/v4 shims used by the browser extension", async () => {
   const req = (path: string, body?: unknown) => fetch(`http://localhost:${server.port}${path}`, {
@@ -158,4 +164,36 @@ test("legacy v3/v4 shims used by the browser extension", async () => {
   const search = await req("/v4/search", { q: "extension", containerTag: "sm_project_ext", include: { relatedMemories: true } });
   expect(search.status).toBe(200);
   expect(Array.isArray(search.body.results)).toBe(true); // fake LLM forms no memories here; shape is what matters
+
+  const profile = await req("/v4/profile", { containerTag: "sm_project_ext", q: "extension" });
+  expect(profile.status).toBe(200);
+  expect(profile.body).toMatchObject({ profile: { static: [], dynamic: [], buckets: { preferences: [] } }, searchResults: { results: [], total: 0 } });
+  const onlyBuckets = await req("/v4/profile", { containerTag: "sm_project_ext", include: ["buckets"] });
+  expect(onlyBuckets.body).toEqual({ profile: { buckets: { preferences: [] } } });
+});
+
+// v5 deviations from the P0 audit (GAP_REPORT §3), fixed in P4. `strict` validates every response against ref/v5.json
+// with no known-mismatch allowances.
+const strict = () => new MemClient({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
+
+test("v5 (fixed in P4): chunk search results carry isLatest and isInference", async () => {
+  const res = await strict().search(NS, { query: "Seattle", searchMode: "chunks", threshold: 0 });
+  expect(res.results.length).toBeGreaterThan(0);
+});
+
+test("v5 (fixed in P4): profile accepts a buckets selection", async () => {
+  const res = await client.profile(NS, { buckets: ["preferences"] });
+  expect(res.profile.buckets).toHaveProperty("preferences");
+});
+
+test("v5 (fixed in P4): list honours sort=updatedAt", async () => {
+  await client.documents.update(NS, "note-1", { content: "# Travel\nAlex moved to Seattle. Edited." });
+  await drain();
+  const byUpdated = await client.list(NS, "documents", { sort: "updatedAt", order: "desc" });
+  expect(byUpdated.documents?.[0].id).toBe("note-1"); // created first, updated last
+});
+
+test("v5 (fixed in P4): list responses carry documents, chunks and memories arrays", async () => {
+  const res = await strict().list(NS, "documents", {});
+  expect(res.documents?.length).toBeGreaterThan(0);
 });

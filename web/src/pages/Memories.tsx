@@ -239,6 +239,8 @@ export function MemoryDetailPage() {
             </div>
           )}
 
+          <Why space={space} id={m.id} />
+
           <h2 className="section-title">Version history</h2>
           <div className="tray">
             <div className="card timeline">
@@ -285,5 +287,46 @@ export function MemoryDetailPage() {
         </>
       )}
     </div>
+  );
+}
+
+const ACTION: Record<string, string> = {
+  create: "Learned", update: "Updated", supersede: "Replaced", extend: "Extended", derive: "Inferred", strengthen: "Confirmed again",
+  decay: "Faded", expire: "Expired", forget: "Forgotten", restore: "Restored", approve: "Approved", reject: "Rejected", edit: "Edited",
+};
+
+/** "Why do I know this?" from GET /x/memories/{id}/explain: the summary, the source quote and what happened to it. */
+function Why({ space, id }: { space: string; id: string }) {
+  const q = useQuery(() => sm.explain(space, id), [space, id]);
+  const why = q.data;
+  if (q.error || !why) return null;
+  return (
+    <>
+      <h2 className="section-title">Why do I know this?</h2>
+      <div className="tray">
+        <div className="card why">
+          <p>{why.summary}</p>
+          {why.derivedFrom.length > 0 && (
+            <div className="sub">
+              From:{" "}
+              {why.derivedFrom.map((d) => (
+                <Link key={d.id} to={`/memories/${encodeURIComponent(d.id)}`}>{d.memory}</Link>
+              ))}
+            </div>
+          )}
+          {why.history.length > 0 && (
+            <div className="sub">
+              {why.history.map((e, i) => (
+                <span key={i} title={e.reason ?? undefined}>
+                  {ACTION[e.action] ?? e.action} {timeAgo(e.at)}{e.actor === "user" ? " by you" : ""}
+                  {i < why.history.length - 1 ? " ·" : ""}
+                </span>
+              ))}
+            </div>
+          )}
+          {why.learnedBy && <div className="sub mono">run {why.learnedBy.dreamRun.slice(0, 8)} · {why.learnedBy.models.join(", ") || "cached"}</div>}
+        </div>
+      </div>
+    </>
   );
 }

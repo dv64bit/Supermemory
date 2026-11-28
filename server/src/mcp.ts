@@ -47,6 +47,32 @@ function buildServer(call: (method: string, path: string, body?: unknown) => Pro
     return text([`# Profile (${ns})`, `## Static\n${list(profile.static)}`, `## Dynamic\n${list(profile.dynamic)}`, ...buckets].join("\n\n"));
   });
 
+  // Not an upstream tool: the token-budgeted block from x/context, for clients that want one call instead of two.
+  server.registerTool("get_context", {
+    description: "Get a ready-to-use context block for a task or question: the user's profile, the memories most relevant to the query (with dates and IDs) and matching document excerpts, packed under a token budget.",
+    inputSchema: { query: z.string().min(1).max(2000).optional(), budgetTokens: z.number().int().min(50).max(8000).optional(), namespace: nsSchema },
+    annotations: ro,
+  }, async ({ query, budgetTokens, namespace }) => {
+    const ns = await space(namespace);
+    const res = await call("POST", `/ns/${ns}/x/context`, { ...(query && { query }), ...(budgetTokens && { budgetTokens }) });
+    return text(res.context ? `# Context (${ns})\n\n${res.context}` : `Nothing is stored in "${ns}" yet.`);
+  });
+
+  server.registerTool("explain_memory", {
+    description: "Explain why a memory is known: who said it and the exact quote, the source document, when it became true, its earlier versions and every change made to it. Takes a memory ID from search_memory or list_memories.",
+    inputSchema: { id: z.string().min(1).max(100), namespace: nsSchema },
+    annotations: ro,
+  }, async ({ id, namespace }) => {
+    const ns = await space(namespace);
+    const res = await call("GET", `/ns/${ns}/x/memories/${encodeURIComponent(id)}/explain`);
+    if (!res.memory) return text(`No memory ${id} in "${ns}".`);
+    const lines = [`# ${res.memory.memory}`, res.summary];
+    if (res.versions.length > 1) lines.push("## Versions", ...res.versions.map((v: any) => `- v${v.version}${v.isLatest ? " (current)" : ""}: ${v.memory}`));
+    if (res.derivedFrom.length) lines.push("## Inferred from", ...res.derivedFrom.map((d: any) => `- ${d.id}: ${d.memory}`));
+    if (res.history.length) lines.push("## History", ...res.history.map((e: any) => `- ${e.at.slice(0, 16).replace("T", " ")} ${e.action} by ${e.actor}${e.reason ? `: ${e.reason}` : ""}`));
+    return text(lines.join("\n"));
+  });
+
   server.registerTool("add_memory", {
     description: "Save something worth remembering (a fact, preference, decision or note, or a URL to ingest) in the active space. To remove outdated information use forget_memory.",
     inputSchema: { content: z.string().min(1).max(200_000), namespace: nsSchema },

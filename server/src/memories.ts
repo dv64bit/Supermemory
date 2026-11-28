@@ -4,7 +4,9 @@ import { compileFilter, type Filter } from "./filter";
 const iso = (d: Date) => d.toISOString();
 
 // A memory is "live" when it is the latest version, not forgotten and not past its expiry.
-export const LIVE = (m = "m") => `${m}.is_latest and not ${m}.is_forgotten and (${m}.forget_after is null or ${m}.forget_after > now())`;
+// Live = the current version, not forgotten, not expired, still valid (deleted/edited documents end validity), not rejected.
+export const LIVE = (m = "m") =>
+  `${m}.is_latest and not ${m}.is_forgotten and (${m}.forget_after is null or ${m}.forget_after > now()) and (${m}.valid_to is null or ${m}.valid_to > now()) and ${m}.status <> 'rejected'`;
 
 export function memoryJson(r: any) {
   return {

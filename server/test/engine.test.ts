@@ -1,6 +1,7 @@
 // Seam 2: memory formation through the public API, with a scripted LLM so mechanics are deterministic.
 import { beforeAll, afterAll, expect, test } from "bun:test";
 import { freshDb, startFakeLlm } from "./fake-llm";
+import { KNOWN_V5_MISMATCHES, validatingFetch } from "./v5-schema";
 
 const has = (s: string, ...words: string[]) => words.every((w) => s.toLowerCase().includes(w.toLowerCase()));
 
@@ -45,7 +46,7 @@ let client: InstanceType<typeof MemClient>;
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp("k").fetch });
-  client = new MemClient({ apiKey: "k", baseUrl: `http://localhost:${server.port}`, maxRetries: 0 });
+  client = new MemClient({ apiKey: "k", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
@@ -167,10 +168,14 @@ test("semantic forget: dry run reports, real run forgets only what the LLM picke
 
 test("sweep: unreinforced episodes decay and are forgotten; expired facts are flagged", async () => {
   const { sql } = await import("../src/db");
-  const { sweep } = await import("../src/forget");
+  const { sweep } = await import("../src/lifecycle");
   await client.add(NS, { content: "Alex went to the dentist." });
   await drain();
-  await sql`update memories set updated_at = now() - interval '90 days' where content like '%dentist%'`;
+  // lifecycle.yaml: significance 0.5, half-life 30 days, forget below 0.05 -> gone after ~100 days unreinforced.
+  await sql`update memories set updated_at = now() - interval '60 days' where content like '%dentist%'`;
+  await sweep();
+  expect((await client.list(NS, "memories", { include: { forgotten: true } })).memories!.find((m) => m.memory.includes("dentist"))?.isForgotten).toBe(false);
+  await sql`update memories set updated_at = now() - interval '120 days' where content like '%dentist%'`;
   await sweep();
   const all = await client.list(NS, "memories", { include: { forgotten: true } });
   expect(all.memories!.find((m) => m.memory.includes("dentist"))?.isForgotten).toBe(true);
@@ -201,6 +206,8 @@ test("graph returns memory + document nodes and typed edges", async () => {
   const ids = new Set(g.nodes.map((n: any) => n.id));
   expect(g.edges.every((e: any) => ids.has(e.source) && ids.has(e.target))).toBe(true);
   expect(g.nodes.find((n: any) => n.type === "memory" && n.label?.includes("Google"))?.isLatest).toBe(false); // old version kept for the chain
+  // The extension's home is /x/graph; /graph stays as an alias.
+  expect(await (await api(`/ns/${NS}/x/graph`)).json()).toEqual(g);
 });
 
 test("chat streams context + reply over SSE and saves the conversation as memory", async () => {
@@ -221,10 +228,28 @@ test("chat streams context + reply over SSE and saves the conversation as memory
   expect(doc.content).toContain("Assistant: Echo: you work at Stripe");
 });
 
+test("chat also lives at /ns/{ns}/x/chat, namespace from the path", async () => {
+  const res = await api(`/ns/${NS}/x/chat`, { method: "POST", body: JSON.stringify({ messages: [{ role: "user", content: "Where do I work? Stripe?" }] }) });
+  const text = await res.text();
+  expect(text).toContain("event: context");
+  expect(text).toContain("event: delta");
+  expect(text).toContain("event: done");
+  expect((await api(`/ns/${NS}/x/chat`, { method: "POST", body: JSON.stringify({ namespace: NS, messages: [{ role: "user", content: "hi" }] }) })).status).toBe(400);
+  await drain();
+});
+
 test("an expiry at or before the document date is ignored (lasting fact stays live)", async () => {
   await add("Alex moved from Pune to Berlin last year.", { date: "2026-03-01T09:00:00Z" });
-  const { sweep } = await import("../src/forget");
+  const { sweep } = await import("../src/lifecycle");
   await sweep();
   const list = await client.list(NS, "memories", {});
   expect(list.memories!.some((m) => m.memory.includes("Pune"))).toBe(true);
+});
+
+// v5 deviation from the P0 audit (GAP_REPORT §3 #2), fixed in P4.
+test("v5 (fixed in P4): memories.get with include=documents returns the source document", async () => {
+  const list = await client.list(NS, "memories", {});
+  const fromDoc = list.memories!.find((m) => m.memory === "Alex works at Stripe as a product manager")!;
+  const m = await client.memories.get(NS, fromDoc.id, { include: ["documents"] });
+  expect(m.included?.document?.id).toBe("d2");
 });

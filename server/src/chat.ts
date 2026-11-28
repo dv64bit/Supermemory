@@ -1,33 +1,29 @@
-// Chat with memory: profile + relevant memories go into the system prompt, the reply streams back as SSE,
-// and the conversation is saved as a document so it becomes memory too.
-import type { Hono } from "hono";
+// Chat with memory: the assembled context (profile, relevant memories, document chunks; sensitive memories only if the
+// namespace allows) goes into the system prompt, the reply streams back as SSE, and the conversation is saved as a
+// document so it becomes memory too.
+import type { Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";
-import { llmStream, type ChatMessage } from "./llm";
+import { stream as llmStream, type ChatMessage } from "./llm";
+import { redact } from "./guard";
+import { assembleContext } from "./context";
 
+const nsParam = z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/);
 const body = z.object({
-  namespace: z.string().max(100).regex(/^[a-zA-Z0-9_:-]+$/),
   conversationId: z.string().min(1).max(200).regex(/^[a-zA-Z0-9_-]+$/).optional(),
   messages: z.array(z.object({ role: z.enum(["user", "assistant"]), content: z.string().min(1).max(50_000) })).min(1).max(200),
 }).strict().refine((b) => b.messages.at(-1)!.role === "user", { message: "last message must be from the user" });
+// The original route takes the namespace in the body; POST /ns/{ns}/x/chat takes it from the path.
+const legacyBody = z.object({ namespace: nsParam }).passthrough();
 
-const MEMORY_LIMIT = 8;
+const CONTEXT_BUDGET = 1500; // tokens
+const PING_MS = 5000;
 
-function systemPrompt(profile: { static: { memory: string }[]; dynamic: { memory: string }[] }, memories: { memory: string }[]) {
-  const list = (xs: { memory: string }[]) => xs.map((m) => `- ${m.memory}`).join("\n") || "- (nothing yet)";
-  return `You are the user's personal assistant with long-term memory.
+const systemPrompt = (context: string) => `You are the user's personal assistant with long-term memory.
 Use what you know about the user when it helps; don't recite it unprompted. If memory and the conversation disagree, trust the conversation.
 Answer concisely.
 
-## About the user (durable)
-${list(profile.static.slice(0, 25))}
-
-## Recent context
-${list(profile.dynamic.slice(0, 10))}
-
-## Memories relevant to this message
-${list(memories)}`;
-}
+${context || "(Nothing is known about the user yet.)"}`;
 
 export function mountChat(app: Hono, apiKey: string) {
   const call = async (method: string, path: string, payload?: unknown) => {
@@ -39,29 +35,38 @@ export function mountChat(app: Hono, apiKey: string) {
     return res.json();
   };
 
+  app.post("/ns/:namespace/x/chat", async (c) => handle(c, nsParam.parse(c.req.param("namespace")), body.parse(await c.req.json())));
   app.post("/chat", async (c) => {
-    const { namespace: ns, conversationId, messages } = body.parse(await c.req.json());
+    const { namespace, ...rest } = legacyBody.parse(await c.req.json());
+    return handle(c, namespace, body.parse(rest));
+  });
+
+  const handle = async (c: Context, ns: string, parsed: z.infer<typeof body>) => {
+    const { conversationId } = parsed;
+    const messages = parsed.messages.map((m) => ({ ...m, content: redact(m.content).text }));
     const cid = conversationId ?? crypto.randomUUID();
     const last = messages.at(-1)!.content;
 
-    const [{ profile }, found] = await Promise.all([
-      call("POST", `/ns/${ns}/profile`, {}).then((r) => (r.profile ? r : { profile: { static: [], dynamic: [], buckets: {} } })),
-      call("POST", `/ns/${ns}/search`, { query: last.slice(0, 2000), searchMode: "memories", limit: MEMORY_LIMIT }),
-    ]);
-    const memories = (found.results ?? []).map((r: any) => ({ id: r.id, memory: r.memory, similarity: r.similarity }));
+    const ctx = await assembleContext(ns, { query: last.slice(0, 2000), budgetTokens: CONTEXT_BUDGET });
+    const { memories, profile } = ctx;
 
     return streamSSE(c, async (stream) => {
       await stream.writeSSE({ event: "context", data: JSON.stringify({ conversationId: cid, memories, profile: { static: profile.static, dynamic: profile.dynamic } }) });
       let reply = "";
+      // A local model can take minutes to load and start answering; a quiet connection gets closed by the server
+      // (Bun's idle timeout) or a proxy. A ping every few seconds keeps it open; clients ignore the event.
+      const ping = setInterval(() => void stream.writeSSE({ event: "ping", data: "{}" }).catch(() => {}), PING_MS);
       try {
-        const prompt: ChatMessage[] = [{ role: "system", content: systemPrompt(profile, memories) }, ...messages];
-        for await (const text of llmStream(prompt, c.req.raw.signal)) {
+        const prompt: ChatMessage[] = [{ role: "system", content: systemPrompt(ctx.context) }, ...messages];
+        for await (const text of llmStream("chat", prompt, c.req.raw.signal)) {
           reply += text;
           await stream.writeSSE({ event: "delta", data: JSON.stringify({ text }) });
         }
       } catch (e) {
         await stream.writeSSE({ event: "error", data: JSON.stringify({ error: String((e as Error).message ?? e) }) });
         return;
+      } finally {
+        clearInterval(ping);
       }
       await stream.writeSSE({ event: "done", data: JSON.stringify({ conversationId: cid }) });
 
@@ -71,5 +76,5 @@ export function mountChat(app: Hono, apiKey: string) {
       await call("POST", `/ns/${ns}/document`, { id: `chat-${cid}`, content: transcript, metadata: { source: "chat" } })
         .catch((e) => console.error("chat save", e));
     });
-  });
+  };
 }

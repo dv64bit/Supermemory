@@ -1,8 +1,8 @@
 import {
+	fetchContext,
+	fetchProjects,
 	getDefaultProject,
 	saveMemory,
-	searchMemories,
-	fetchProjects,
 } from "../utils/api"
 import {
 	CONTAINER_TAGS,
@@ -224,14 +224,13 @@ export default defineBackground(() => {
 				console.warn("Failed to get default project, using fallback:", error)
 			}
 
-			const responseData = await searchMemories(data, containerTag)
-			const response = responseData as {
-				results?: Array<{ memory?: string }>
-			}
-			const memories: string[] = []
-			response.results?.forEach((result, index) => {
-				memories.push(`${index + 1}. ${result.memory} \n`)
-			})
+			// One budgeted block from x/context (profile, relevant memories with dates, document excerpts) instead of
+			// raw search results; sensitive memories stay out unless the space allows them.
+			const { context } = await fetchContext(data, containerTag)
+			const memories = context
+				.split("\n")
+				.filter((line) => line.trim())
+				.map((line) => `${line} \n`)
 			await trackEvent(eventSource)
 			return { success: true, data: memories }
 		} catch (error) {

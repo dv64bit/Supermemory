@@ -1,0 +1,38 @@
+{
+  "id": "2026-10-22T13-05-56Z-latency-10k",
+  "git": {
+    "sha": "6478535",
+    "dirty": true
+  },
+  "layer": "latency",
+  "name": "10k",
+  "startedAt": "2026-10-22T13:05:56.890Z",
+  "durationMs": 40520,
+  "config": {
+    "memories": 10000,
+    "chunks": 2500,
+    "documents": 250,
+    "vectors": "random (SQL)",
+    "queries": 40,
+    "reps": "40 search / 20 profile",
+    "cpus": 12
+  },
+  "metrics": {
+    "search_memories_p50_ms": 105.39349500000026,
+    "search_memories_p95_ms": 201.98989000000074,
+    "search_hybrid_p50_ms": 117.71485000000393,
+    "search_hybrid_p95_ms": 309.28816299999744,
+    "query_embed_p50_ms": 25.031227999999828,
+    "profile_p50_ms": 35.44842699999572,
+    "profile_p95_ms": 63.37726300000213,
+    "list_memories_p50_ms": 13.79119200000423,
+    "load_s": 3.8241267099999994,
+    "hnsw_build_s": 16.045208593999998
+  },
+  "notes": [
+    "search (memories): p95 202 ms vs budget 300 ms -> OK",
+    "search (hybrid): p95 309 ms vs budget 300 ms -> OVER",
+    "profile: p95 63 ms vs budget 50 ms -> OVER",
+    "mean hybrid search 140 ms, of which query embedding ~25 ms"
+  ]
+}

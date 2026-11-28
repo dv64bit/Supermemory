@@ -1,0 +1,41 @@
+{
+  "id": "2026-11-25T15-26-29Z-latency-100k",
+  "git": {
+    "sha": "1b8f0e7",
+    "dirty": true
+  },
+  "layer": "latency",
+  "name": "100k",
+  "startedAt": "2026-11-25T15:26:29.527Z",
+  "durationMs": 254095,
+  "config": {
+    "memories": 100000,
+    "chunks": 25000,
+    "documents": 2500,
+    "vectors": "random (SQL)",
+    "queries": 40,
+    "reps": "40 search / 20 profile / 40 context",
+    "cpus": 12
+  },
+  "metrics": {
+    "search_memories_p50_ms": 69.72156100004213,
+    "search_memories_p95_ms": 208.7141100000008,
+    "search_hybrid_p50_ms": 63.93447300000116,
+    "search_hybrid_p95_ms": 98.2682490000152,
+    "query_embed_p50_ms": 23.964826000039466,
+    "profile_p50_ms": 27.48640700004762,
+    "profile_p95_ms": 34.35511000000406,
+    "context_p50_ms": 115.9858349999995,
+    "context_p95_ms": 221.59051500004716,
+    "list_memories_p50_ms": 24.351920999994036,
+    "load_s": 49.897735944,
+    "hnsw_build_s": 184.148865153
+  },
+  "notes": [
+    "search (memories): p95 209 ms vs budget 300 ms -> OK",
+    "search (hybrid): p95 98 ms vs budget 300 ms -> OK",
+    "profile: p95 34 ms vs budget 50 ms -> OK",
+    "x/context: p95 222 ms vs budget 400 ms -> OK",
+    "mean hybrid search 72 ms, of which query embedding ~24 ms"
+  ]
+}

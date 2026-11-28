@@ -7,7 +7,8 @@ export class ApiError extends Error {
 export class NotFoundError extends ApiError {}
 export class UnauthorizedError extends ApiError {}
 
-type Opts = { apiKey: string; baseUrl: string; maxRetries?: number };
+// `fetch` lets a test wrap every request (v5-schema.ts validates each response against ref/v5.json).
+type Opts = { apiKey: string; baseUrl: string; maxRetries?: number; fetch?: typeof fetch };
 // Loose response type: tests assert on fields directly; list fields typed as arrays so callbacks aren't implicit-any.
 type Res = { [k: string]: any; results: any[]; documents: any[]; memories: any[]; chunks: any[] };
 
@@ -15,7 +16,7 @@ export class MemClient {
   constructor(private opts: Opts) {}
 
   private async req(method: string, path: string, body?: unknown): Promise<Res> {
-    const res = await fetch(`${this.opts.baseUrl}${path}`, {
+    const res = await (this.opts.fetch ?? fetch)(`${this.opts.baseUrl}${path}`, {
       method,
       headers: { authorization: `Bearer ${this.opts.apiKey}`, "content-type": "application/json" },
       body: body === undefined ? undefined : JSON.stringify(body),
@@ -29,8 +30,12 @@ export class MemClient {
 
   add = (ns: string, body: Record<string, unknown>) => this.req("POST", `/ns/${ns}/document`, body);
   search = (ns: string, body: Record<string, unknown>) => this.req("POST", `/ns/${ns}/search`, body);
-  list = (ns: string, type: "documents" | "chunks" | "memories", body: Record<string, unknown> = {}) =>
-    this.req("POST", `/ns/${ns}/list/${type}`, body);
+  // v5 takes paging and sorting as query parameters; the body only holds filter/include.
+  list = (ns: string, type: "documents" | "chunks" | "memories", body: Record<string, unknown> = {}) => {
+    const { page, limit, sort, order, ...rest } = body;
+    const q = new URLSearchParams(Object.entries({ page, limit, sort, order }).filter(([, v]) => v !== undefined).map(([k, v]) => [k, String(v)]));
+    return this.req("POST", `/ns/${ns}/list/${type}${q.size ? `?${q}` : ""}`, rest);
+  };
   profile = (ns: string, body: Record<string, unknown> = {}) => this.req("POST", `/ns/${ns}/profile`, body);
 
   documents = {
@@ -42,7 +47,8 @@ export class MemClient {
   };
 
   memories = {
-    get: (ns: string, id: string, _o: Record<string, unknown> = {}) => this.req("GET", `/ns/${ns}/memories/${encodeURIComponent(id)}`),
+    get: (ns: string, id: string, o: { include?: string[] } = {}) =>
+      this.req("GET", `/ns/${ns}/memories/${encodeURIComponent(id)}${o.include?.length ? `?include=${o.include.join(",")}` : ""}`),
     forget: (ns: string, body: { ids: string[] }) => this.req("DELETE", `/ns/${ns}/memories`, body),
     forgetMatching: (ns: string, body: { query: string; dryRun: boolean }) => this.req("DELETE", `/ns/${ns}/memories/semantic`, body),
   };
