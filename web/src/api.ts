@@ -26,7 +26,7 @@ export const settings = {
   },
 };
 
-// ---------- types (Supermemory v5 shapes, only the fields the UI reads) ----------
+// ---------- types (supermem API shapes, only the fields the UI reads) ----------
 
 export type Status = "queued" | "extracting" | "chunking" | "embedding" | "indexing" | "done" | "failed";
 

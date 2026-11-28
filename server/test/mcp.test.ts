@@ -27,7 +27,7 @@ beforeAll(async () => {
 });
 afterAll(async () => (await client.close(), server.stop(true), llm.stop(true)));
 
-test("lists upstream-compatible tools", async () => {
+test("lists the memory tools", async () => {
   const { tools } = await client.listTools();
   expect(tools.map((t) => t.name).sort()).toEqual([
     "add_memory", "explain_memory", "forget_memory", "get_context", "get_document", "get_profile", "list_documents",
@@ -64,8 +64,8 @@ test("select space, add, search, profile, forget round-trip", async () => {
 
 test("resources and the context prompt", async () => {
   const { resources } = await client.listResources();
-  expect(resources.map((r) => r.uri).sort()).toEqual(["supermemory://profile", "supermemory://spaces"]);
-  const spaces = await client.readResource({ uri: "supermemory://spaces" });
+  expect(resources.map((r) => r.uri).sort()).toEqual(["supermem://profile", "supermem://spaces"]);
+  const spaces = await client.readResource({ uri: "supermem://spaces" });
   expect(JSON.parse((spaces.contents[0] as any).text).namespaces[0].id).toBe("personal");
   const prompt = await client.getPrompt({ name: "context" });
   expect((prompt.messages[0].content as any).text).toContain('space "personal"');

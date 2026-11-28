@@ -1,5 +1,5 @@
-// Seam 1: the official `supermemory` v5 SDK against our server. If the SDK is happy, plugins/tools are too.
-// Every SDK response is also validated against ref/v5.json (see v5-schema.ts).
+// Seam 1: the HTTP API contract, exercised through a small external-style client (./client.ts).
+// Every response is also validated against ref/v5.json (see v5-schema.ts).
 import { beforeAll, afterAll, expect, test } from "bun:test";
 
 import { freshDb, startFakeLlm } from "./fake-llm";
@@ -9,17 +9,17 @@ await freshDb("supermem_test_contract");
 const { migrate } = await import("../src/db");
 const { createApp } = await import("../src/app");
 const { drain } = await import("../src/worker");
-const { Supermemory, UnauthorizedError, NotFoundError } = await import("supermemory");
+const { MemClient, UnauthorizedError, NotFoundError } = await import("./client");
 
 const KEY = "sm_test_key";
 let server: ReturnType<typeof Bun.serve>;
-let client: InstanceType<typeof Supermemory>;
+let client: InstanceType<typeof MemClient>;
 const NS = "user_alex";
 
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp(KEY).fetch });
-  client = new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
+  client = new MemClient({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
@@ -29,7 +29,7 @@ test("add -> ingest -> search round-trips through the SDK", async () => {
     id: "note-1",
     metadata: { source: "note", tags: ["personal"], priority: 3 },
   });
-  expect(added).toEqual({ id: "note-1", status: "queued" });
+  expect(added as unknown).toEqual({ id: "note-1", status: "queued" });
   await client.add(NS, { content: "Quarterly OKRs: ship the payments dashboard and cut fraud losses.", id: "note-2", metadata: { source: "work", priority: 1 } });
   await drain();
 
@@ -92,7 +92,7 @@ test("namespaces list counts documents", async () => {
 });
 
 test("bad key is rejected, bad body is 400", async () => {
-  const bad = new Supermemory({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
+  const bad = new MemClient({ apiKey: "wrong", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
   expect(await bad.search(NS, { query: "x" }).then(() => null, (e) => e)).toBeInstanceOf(UnauthorizedError);
   const res = await fetch(`http://localhost:${server.port}/ns/${NS}/search`, {
     method: "POST", headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json" }, body: JSON.stringify({ query: "" }),
@@ -174,7 +174,7 @@ test("legacy v3/v4 shims used by the browser extension", async () => {
 
 // v5 deviations from the P0 audit (GAP_REPORT §3), fixed in P4. `strict` validates every response against ref/v5.json
 // with no known-mismatch allowances.
-const strict = () => new Supermemory({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
+const strict = () => new MemClient({ apiKey: KEY, baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch() });
 
 test("v5 (fixed in P4): chunk search results carry isLatest and isInference", async () => {
   const res = await strict().search(NS, { query: "Seattle", searchMode: "chunks", threshold: 0 });

@@ -812,3 +812,48 @@ Done when (PLAN.v2 §8): prompt change → diff report → swap. Both E1 scenari
 - Decisions are matched on exact (normalised) memory text: if the new pipeline words a fact differently, the user's old decision on it doesn't carry over, and it comes back as an open review.
 
 **In simple words:** when the prompts or the AI model get better, you can now press "Re-dream". It re-reads all your chats and documents into a separate copy and shows a list: these facts would change, these are new, these would disappear. If you like it, press "Swap in"; your old memories are kept in an archive, not deleted. Anything you edited yourself, and decisions you made in Review, carry over. If you don't like it, press "Discard" and nothing changes.
+
+## 2026-11-28: merged main into v2-dev; P7 browser extension
+
+**Merge.** `main` had 6 commits by a collaborator that `v2-dev` never got (it branched at `019c55a`):
+- the browser extension fork (`f376c5c`);
+- the "supermem" rebrand with its own logo (`5bb1367`, `3a09b49`);
+- a test client replacing the official SDK (`3a09b49`);
+- `start.sh` (`d864c7a`);
+- rewritten v1 PLAN/PRD (`920a64a`).
+
+They are merged into `v2-dev`.
+- **Conflicts (4):**
+  - `README.md`: kept both the extension line and the `docs/v2/` line;
+  - `server/src/chat.ts`: kept the v2 code, with main's wording;
+  - `server/test/contract.test.ts` and `engine.test.ts`: main's `MemClient`, with our response validation passed through.
+- **Test client** (`server/test/client.ts`, from main), extended without changing its existing behaviour:
+  - an optional `fetch`, so every response is still validated against `ref/v5.json` (`v5-schema.ts`);
+  - `memories.get` passes `include`;
+  - `list` sends `page/limit/sort/order` as query parameters, as v5 expects; the body is strict.
+- The E1 v2 suite moved off the SDK to `MemClient`; the `supermemory` package is no longer a dependency.
+- **Checks:** server 104 pass, 0 fail; web, eval and server `tsc` clean.
+- **Notes:**
+  - `start.sh` is macOS/Homebrew-only (`brew services`, `/opt/homebrew`). On WSL/Linux, start the server and web by hand as in NEXT.v2 "Running".
+  - P7 started as a fresh copy of the upstream extension before the existing fork on `main` was noticed; that copy was deleted unused.
+
+**P7: the extension (`extension/`, the collaborator's fork).**
+- **Already on main:**
+  - a connect form (server URL + API key) instead of the hosted sign-in;
+  - no analytics;
+  - host permissions limited to `127.0.0.1`/`localhost`;
+  - own name and icons;
+  - saving through the v3/v4 shims.
+- **New in v2:** auto-recall (`getRelatedMemories` in `background.ts`) now calls `POST /ns/{ns}/x/context` with a 600-token budget (`utils/api.ts` `fetchContext`), instead of `/v4/search`. ChatGPT, Claude, Gemini, Grok and T3 now get:
+  - the profile;
+  - the relevant memories with "since" dates, with unconfirmed inferences marked;
+  - document excerpts;
+  - sensitive memories only if the space allows them.
+- **Checked** with the built extension (`bun run build`) loaded in headless Chromium against the local server:
+  - the popup with a wrong key shows "Server rejected the API key"; with the right key it connects and lists the spaces;
+  - the recall message (as the ChatGPT script sends it) returned the `x/context` block for `demo`;
+  - the save message stored a page in `demo` with its URL and title (test document deleted afterwards).
+- **Not checked:** the content scripts on the real chat sites (they need those sites, and accounts on them).
+- PLAN.v2 §8 "done when: save + auto-recall in ChatGPT and Claude" is met at the extension/server boundary (the same messages those scripts send); the in-page part is the upstream code, unchanged.
+
+**In simple words:** your friend had already built the browser extension on the main branch, so I merged their work into ours instead of redoing it. That brought in the extension, the "supermem" name and logo, and a start script for Mac. All tests still pass. The extension now gives ChatGPT, Claude and the others the same tidy context block as our chat: your profile, the relevant memories with dates, and no private health or money facts unless you allow them. I tested connecting, saving and recalling with the real extension in a browser.

@@ -1,6 +1,6 @@
 // Chat with memory: the assembled context (profile, relevant memories, document chunks; sensitive memories only if the
 // namespace allows) goes into the system prompt, the reply streams back as SSE, and the conversation is saved as a
-// document so it becomes memory too (what upstream's withSupermemory does).
+// document so it becomes memory too.
 import type { Context, Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import { z } from "zod";

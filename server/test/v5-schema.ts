@@ -1,5 +1,5 @@
 // Validates live responses against the published v5 OpenAPI spec (ref/v5.json). Plug `validatingFetch` into the
-// official SDK (`new Supermemory({ fetch })`) so every call a test makes is checked, without modifying the SDK.
+// test client (`new MemClient({ fetch })`, ./client.ts) so every call a test makes is checked.
 import { z } from "zod";
 
 const spec = await Bun.file(`${import.meta.dir}/../../ref/v5.json`).json();

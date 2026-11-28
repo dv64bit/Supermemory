@@ -4,12 +4,13 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 ## Current state (2026-11-28)
 
-- **Phase:** P1–P6 are built. P5's completion and P6 (re-dream) wait for the owner's commit.
+- **Phase:** P1–P7 are built. The merge of `main` and P7 wait for the owner's commit.
 - **Numbers:**
   - retrieval recall@10 0.955 (P1 0.844);
   - latency in budget at 100k (search p95 209 / 98 ms, profile 34 ms, `x/context` 222 ms).
   - Details: BASELINE.md, "P4 results".
-- **Tests:** server 104 pass, 0 fail, 0 todo, 0 targets open. Web 1/1.
+- **Tests:** server 104 pass, 0 fail, 0 todo, 0 targets open (tests use `server/test/client.ts`, not the SDK). Web 1/1.
+- **Start:** `start.sh` is macOS/Homebrew-only; on WSL/Linux use the commands under "Running".
 - **Try the screens:** `cd server && bun run seed:demo`, then pick the `demo` space (Review, any memory, Settings → Re-dream).
 - **Not measured:** P3's LLM steps with a real model since the fixes. This machine (WSL, 4.9 GB RAM) can't run `qwen3:4b-instruct` usefully.
 - **Open risk:** DEFERRED #9, the Bun SQL parameter mix-up. It is mitigated, but the root cause isn't confirmed.
@@ -19,7 +20,8 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 - **P5 done** (2026-11-27): the review inbox with keep new / keep old / keep both / merge, "Why do I know this?", `explain_memory`, all extensions under `/x/`. Try it with `bun run seed:demo` (space `demo`).
 - **P6 done** (2026-11-28): re-dream into `{ns}:shadow`, diff report, swap (old memories archived) or discard; Settings → Re-dream.
-- **Next: P7**, the browser extension fork (steps below, under "Parked"). Also still open: DEFERRED #9 (Bun SQL repro), and real-model evals once a machine can run the 4b model.
+- **P7 done** (2026-11-28): `main` merged into `v2-dev` (extension fork, the supermem rebrand, test client, `start.sh`); extension recall uses `x/context`.
+- **Next: P8**, files (PDF/Office/image/audio), then connectors (local folder/Obsidian first). Also still open: DEFERRED #9 (Bun SQL repro), and real-model evals once a machine can run the 4b model.
 - **When a machine can run the 4b model:**
   - re-run `eval:e2` (extraction, relation, grounding) and compare with P1;
   - add the entity retrieval set (DEFERRED #7).
@@ -35,17 +37,11 @@ This file is overwritten as work moves. History lives in `DEVLOG.md`; things ski
 
 P2 schema + migrations + guard → P3 Dreamer v2 → P4 Retrieval v2 + context + `as_of` → P5 review/conflict UI + explain → P6 re-dream → P7 extension → P8 files + connectors → P9 learner-lite → P10 extras. Detail is in PLAN.v2.md §8.
 
-## Parked: P7 browser extension fork (steps from v1, still valid)
+## Browser extension (P7)
 
-- **Source:** upstream MIT source is at commit `4d8a4ebfddadc3430f7f59a752cd374670833f50`, path `apps/browser-extension` (WXT + React). **Verify the licence and contents first.**
-  Fetch with: `gh api repos/supermemoryai/supermemory/tarball/<sha> > repo.tgz && tar -xzf repo.tgz '*/apps/browser-extension/*'`
-- **Setup:** copy it to `extension/` and keep the MIT notice. Then:
-  1. In `utils/constants.ts`, make the API base come from storage (`serverUrl`, default `http://127.0.0.1:6767`). `utils/api.ts` already sends `Authorization: Bearer <bearerToken>`.
-  2. In the popup (`entrypoints/popup/App.tsx` ~L280, ~L1349) and `welcome/Welcome.tsx`, replace the cloud login with a form for server URL + API key, validated via `GET /v3/projects`.
-  3. In `entrypoints/content/shared.ts` ~L128, remove the token capture from app.supermemory.ai.
-  4. Stub `utils/posthog.ts` (no analytics). In `wxt.config.ts`, drop the supermemory/posthog hosts and add `http://127.0.0.1/*` and `http://localhost/*`.
-  5. Optional: restyle the popup with affectUI tokens (`web/src/index.css`).
-  6. New in v2: auto-recall calls `POST /ns/{ns}/x/context` with a small token budget instead of raw search.
+- `extension/` is the collaborator's fork (from `main`), MIT notice in `extension/LICENSE`. Build: `cd extension && bun install && bun run build`, then in Chrome go to `chrome://extensions`, turn on Developer mode, and use **Load unpacked** on `extension/.output/chrome-mv3`.
+- Connect with the server URL (default `http://127.0.0.1:6767`) and API key (`SUPERMEM_API_KEY`).
+- Saving uses the v3/v4 shims. Recall uses `POST /ns/{ns}/x/context`.
 
 ## Running
 

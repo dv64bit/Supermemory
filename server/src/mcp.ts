@@ -1,4 +1,4 @@
-// MCP endpoint with upstream supermemory's tool names, so prompts/instructions written for it carry over.
+// MCP endpoint: memory tools for any MCP client (Claude, Cursor, ...).
 // Stateless: a fresh server + transport per request. Tools call our own v5 routes in-process (no logic duplicated).
 import type { Hono } from "hono";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -154,9 +154,9 @@ function buildServer(call: (method: string, path: string, body?: unknown) => Pro
     annotations: ro,
   }, async () => text(`Personal supermem server (single user). Active space: ${await activeSpace()}.`));
 
-  server.registerResource("profile", "supermemory://profile", { mimeType: "application/json", description: "Profile of the active space" },
+  server.registerResource("profile", "supermem://profile", { mimeType: "application/json", description: "Profile of the active space" },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await call("POST", `/ns/${await activeSpace()}/profile`, {})) }] }));
-  server.registerResource("spaces", "supermemory://spaces", { mimeType: "application/json", description: "All spaces" },
+  server.registerResource("spaces", "supermem://spaces", { mimeType: "application/json", description: "All spaces" },
     async (uri) => ({ contents: [{ uri: uri.href, mimeType: "application/json", text: JSON.stringify(await call("GET", `/ns?limit=100`)) }] }));
 
   server.registerPrompt("context", { description: "Load the user's profile from the active space as conversation context." }, async () => {

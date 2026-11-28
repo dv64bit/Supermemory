@@ -37,16 +37,16 @@ await freshDb("supermem_test_engine");
 const { migrate } = await import("../src/db");
 const { createApp } = await import("../src/app");
 const { drain } = await import("../src/worker");
-const { Supermemory } = await import("supermemory");
+const { MemClient } = await import("./client");
 
 const NS = "user_alex_engine";
 let server: ReturnType<typeof Bun.serve>;
-let client: InstanceType<typeof Supermemory>;
+let client: InstanceType<typeof MemClient>;
 
 beforeAll(async () => {
   await migrate();
   server = Bun.serve({ port: 0, fetch: createApp("k").fetch });
-  client = new Supermemory({ apiKey: "k", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
+  client = new MemClient({ apiKey: "k", baseUrl: `http://localhost:${server.port}`, maxRetries: 0, fetch: validatingFetch(KNOWN_V5_MISMATCHES) });
 });
 afterAll(() => (server.stop(true), llm.stop(true)));
 
